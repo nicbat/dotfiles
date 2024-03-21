@@ -51,3 +51,6 @@ if [ -f '/home/nicbat/Sources/google-cloud-sdk/path.bash.inc' ]; then . '/home/n
 
 # The next line enables shell command completion for gcloud.
 if [ -f '/home/nicbat/Sources/google-cloud-sdk/completion.bash.inc' ]; then . '/home/nicbat/Sources/google-cloud-sdk/completion.bash.inc'; fi
+
+# start zoxide, replacing the cd command
+eval "$(zoxide init bash --cmd cd)"

@@ -1,1 +1,4 @@
 ~/.fehbg &
+
+# exec udiskie
+udiskie --no-automount --no-notify --tray &
