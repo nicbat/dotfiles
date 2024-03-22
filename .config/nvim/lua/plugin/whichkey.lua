@@ -7,9 +7,13 @@ local M = {
     end,
 }
 
---function M.config()
---    local wk = require("which-key")
---    wk.register(mappin
---end
+function M.config()
+    local wk = require("which-key")
+    wk.register({
+        ["<leader>"] = {
+            f = { name = "Telescope", }
+        }
+    })
+end
 
 return M

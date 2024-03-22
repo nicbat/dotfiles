@@ -2,3 +2,6 @@
 
 # exec udiskie
 udiskie --no-automount --no-notify --tray &
+
+# locker
+exec light-locker &

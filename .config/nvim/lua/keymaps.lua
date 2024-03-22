@@ -1,9 +1,19 @@
-local opts = { noremap = true, silent = true }
+local default_opts = { noremap = true, silent = true }
 
-local term_opts = { silent = true }
+-- local term_opts = { silent = true }
 
 -- Shorten function name
-local keymap = vim.api.nvim_set_keymap
+-- local keymap = vim.api.nvim_set_keymap
+
+local function keymap(mode, lhs, rhs, desc)
+    local mapping_opts = default_opts
+    if desc and desc ~= '' then
+        mapping_opts['desc'] = desc
+    end
+    vim.keymap.set(mode, lhs, rhs, mapping_opts)
+end
+
+local default_desc = ""
 
 -- Modes
 --   normal_mode = "n",
@@ -15,51 +25,51 @@ local keymap = vim.api.nvim_set_keymap
 
 -- Normal --
 -- Better window navigation
-keymap("n", "<C-h>", "<C-w>h", opts)
-keymap("n", "<C-j>", "<C-w>j", opts)
-keymap("n", "<C-k>", "<C-w>k", opts)
-keymap("n", "<C-l>", "<C-w>l", opts)
+keymap("n", "<C-h>", "<C-w>h", default_desc)
+keymap("n", "<C-j>", "<C-w>j", default_desc)
+keymap("n", "<C-k>", "<C-w>k", default_desc)
+keymap("n", "<C-l>", "<C-w>l", default_desc)
 
 -- Resize with arrows
-keymap("n", "<C-Up>", ":resize -2<CR>", opts)
-keymap("n", "<C-Down>", ":resize +2<CR>", opts)
-keymap("n", "<C-Left>", ":vertical resize -2<CR>", opts)
-keymap("n", "<C-Right>", ":vertical resize +2<CR>", opts)
+keymap("n", "<C-Up>", ":resize -2<CR>", default_desc)
+keymap("n", "<C-Down>", ":resize +2<CR>", default_desc)
+keymap("n", "<C-Left>", ":vertical resize -2<CR>", default_desc)
+keymap("n", "<C-Right>", ":vertical resize +2<CR>", default_desc)
 
 -- Naviagate buffers
-keymap("n", "<S-l>", ":bnext<CR>", opts)
-keymap("n", "<S-h>", ":bprevious<CR>", opts)
+keymap("n", "<S-l>", ":bnext<CR>", default_desc)
+keymap("n", "<S-h>", ":bprevious<CR>", default_desc)
 
 -- Move text up and down
-keymap("n", "<A-j>", "<Esc>:m .+1<CR>==gi", opts)
-keymap("n", "<A-k>", "<Esc>:m .-2<CR>==gi", opts)
+keymap("n", "<A-j>", "<Esc>:m .+1<CR>==gi", default_desc)
+keymap("n", "<A-k>", "<Esc>:m .-2<CR>==gi", default_desc)
 
 -- Insert --
 -- Press jk fast to enter
-keymap("i", "jk", "<ESC>", opts)
+keymap("i", "jk", "<ESC>", "fast escape")
 
 -- Visual --
 -- Stay in indent mode
-keymap("v", "<", "<gv", opts)
-keymap("v", ">", ">gv", opts)
+keymap("v", "<", "<gv", default_desc)
+keymap("v", ">", ">gv", default_desc)
 
 -- Move text up and down
-keymap("v", "<A-j>", ":m .+1<CR>==", opts)
-keymap("v", "<A-k>", ":m .-2<CR>==", opts)
+keymap("v", "<A-j>", ":m .+1<CR>==", default_desc)
+keymap("v", "<A-k>", ":m .-2<CR>==", default_desc)
 
 -- Visual Block --
 -- Move text up and down
-keymap("x", "J", ":move '>+1<CR>gv-gv", opts)
-keymap("x", "K", ":move '<-2<CR>gv-gv", opts)
-keymap("x", "<A-j>", ":move '>+1<CR>gv-gv", opts)
-keymap("x", "<A-k>", ":move '<-2<CR>gv-gv", opts)
+keymap("x", "J", ":move '>+1<CR>gv-gv", default_desc)
+keymap("x", "K", ":move '<-2<CR>gv-gv", default_desc)
+keymap("x", "<A-j>", ":move '>+1<CR>gv-gv", default_desc)
+keymap("x", "<A-k>", ":move '<-2<CR>gv-gv", default_desc)
 
 -- Terminal --
 -- Better terminal navigation
-keymap("t", "<C-h>", "<C-\\><C-N><C-w>h", term_opts)
-keymap("t", "<C-j>", "<C-\\><C-N><C-w>j", term_opts)
-keymap("t", "<C-k>", "<C-\\><C-N><C-w>k", term_opts)
-keymap("t", "<C-l>", "<C-\\><C-N><C-w>l", term_opts)
+--keymap("t", "<C-h>", "<C-\\><C-N><C-w>h", term_opts)
+--keymap("t", "<C-j>", "<C-\\><C-N><C-w>j", term_opts)
+--keymap("t", "<C-k>", "<C-\\><C-N><C-w>k", term_opts)
+--keymap("t", "<C-l>", "<C-\\><C-N><C-w>l", term_opts)
 
 -- Command --
 -- Menu navigation
@@ -67,20 +77,20 @@ keymap("c", "<C-j>",  'pumvisible() ? "\\<C-n>" : "\\<C-j>"', { expr = true, nor
 keymap("c", "<C-k>",  'pumvisible() ? "\\<C-p>" : "\\<C-k>"', { expr = true, noremap = true } )
 
 -- Telescope
-keymap("n", "<leader>ff", ":Telescope find_files<CR>", opts)
-keymap("n", "<leader>fg", ":Telescope live_grep<CR>", opts)
+keymap("n", "<leader>ff", ":Telescope find_files<CR>", "find files")
+keymap("n", "<leader>fg", ":Telescope live_grep<CR>", "grep files")
 
 -- LSP Keymaps
 -- I really should go through these and make sure I actually know what they mean
-vim.keymap.set("n", "gd", vim.lsp.buf.definition)
-vim.keymap.set("n", "K", vim.lsp.buf.hover)
-vim.keymap.set("n", "<leader>vws", vim.lsp.buf.workspace_symbol)
-vim.keymap.set("n", "<leader>vd", vim.diagnostic.open_float)
-vim.keymap.set("n", "[d", vim.diagnostic.goto_next)
-vim.keymap.set("n", "]d", vim.diagnostic.goto_prev)
-vim.keymap.set("n", "<leader>vca", vim.lsp.buf.code_action)
-vim.keymap.set("n", "<leader>vrr", vim.lsp.buf.references)
-vim.keymap.set("n", "<leader>vrn", vim.lsp.buf.rename)
+keymap("n", "gd", vim.lsp.buf.definition, default_desc)
+keymap("n", "K", vim.lsp.buf.hover, default_desc)
+keymap("n", "<leader>vws", vim.lsp.buf.workspace_symbol, default_desc)
+keymap("n", "<leader>vd", vim.diagnostic.open_float, default_desc)
+keymap("n", "[d", vim.diagnostic.goto_next, default_desc)
+keymap("n", "]d", vim.diagnostic.goto_prev, default_desc)
+keymap("n", "<leader>vca", vim.lsp.buf.code_action, default_desc)
+keymap("n", "<leader>vrr", vim.lsp.buf.references, default_desc)
+keymap("n", "<leader>vrn", vim.lsp.buf.rename, default_desc)
 
 -- Nvim Tree
-keymap("n", "<leader>e", ":NvimTreeToggle<CR>", opts)
+keymap("n", "<leader>e", ":NvimTreeToggle<CR>", "Open File Tree")
