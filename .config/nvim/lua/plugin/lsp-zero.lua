@@ -33,7 +33,7 @@ function M.config()
 		}
 	})
 
-	require "lsp-zero".setup()
+	require("lsp-zero").setup()
 	require("mason").setup()
 
 	require "mason-lspconfig".setup_handlers {
@@ -50,7 +50,6 @@ function M.config()
 	vim.diagnostic.config({
 		virtual_text = true
 	})
-
 end
 
 return M

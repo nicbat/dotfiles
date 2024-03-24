@@ -82,15 +82,18 @@ keymap("n", "<leader>fg", ":Telescope live_grep<CR>", "grep files")
 
 -- LSP Keymaps
 -- I really should go through these and make sure I actually know what they mean
-keymap("n", "gd", vim.lsp.buf.definition, default_desc)
-keymap("n", "K", vim.lsp.buf.hover, default_desc)
-keymap("n", "<leader>vws", vim.lsp.buf.workspace_symbol, default_desc)
-keymap("n", "<leader>vd", vim.diagnostic.open_float, default_desc)
-keymap("n", "[d", vim.diagnostic.goto_next, default_desc)
-keymap("n", "]d", vim.diagnostic.goto_prev, default_desc)
-keymap("n", "<leader>vca", vim.lsp.buf.code_action, default_desc)
-keymap("n", "<leader>vrr", vim.lsp.buf.references, default_desc)
-keymap("n", "<leader>vrn", vim.lsp.buf.rename, default_desc)
+keymap("n", "gd", vim.lsp.buf.definition, "go to definition")
+keymap("n", "K", vim.lsp.buf.hover, "show definition")
+keymap("n", "<leader>vws", vim.lsp.buf.workspace_symbol, "search symbols")
+keymap("n", "<leader>vd", vim.diagnostic.open_float, "open warning/error")
+keymap("n", "[d", vim.diagnostic.goto_next, "go to next diagnostic")
+keymap("n", "]d", vim.diagnostic.goto_prev, "go to next diagnostic")
+keymap("n", "<leader>vca", vim.lsp.buf.code_action, "code actions")
+keymap("n", "<leader>vrr", vim.lsp.buf.references, "find all references")
+keymap("n", "<leader>vrn", vim.lsp.buf.rename, "rename all occurrences")
 
 -- Nvim Tree
 keymap("n", "<leader>e", ":NvimTreeToggle<CR>", "Open File Tree")
+
+-- Ray Screenshot
+keymap("v", "<leader>s", ":Ray<CR>", "Ray Screenshot")

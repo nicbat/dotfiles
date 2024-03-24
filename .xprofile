@@ -4,4 +4,7 @@
 udiskie --no-automount --no-notify --tray &
 
 # locker
-exec light-locker &
+light-locker &
+
+# wifi tray module
+nm-applet &
