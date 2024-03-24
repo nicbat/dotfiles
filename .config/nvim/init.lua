@@ -25,6 +25,9 @@ Spec('plugin.gitsigns')
 Spec('plugin.vimray')
 -- Startup, I don't feel like using it rn
 -- Spec('plugin.startup')
+Spec('plugin.autoclose')
+-- Terminal, might not need because of i3
+-- Spec('plugin.terminal')
 
 require('plugin.lazy')
 require('keymaps')
