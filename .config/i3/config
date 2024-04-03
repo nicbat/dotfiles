@@ -203,3 +203,7 @@ default_border pixel 0
 # brightness keys
 bindsym XF86MonBrightnessUp exec --no-startup-id brightnessctl set +25
 bindsym XF86MonBrightnessDown exec --no-startup-id brightnessctl set 25-
+
+# cycle through workspaces
+bindsym $mod+Control+semicolon workspace next
+bindsym $mod+Control+j workspace prev

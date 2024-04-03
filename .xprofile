@@ -1,5 +1,3 @@
-~/.fehbg &
-
 # exec udiskie
 udiskie --no-automount --no-notify --tray &
 
@@ -8,3 +6,15 @@ light-locker &
 
 # wifi tray module
 nm-applet &
+
+blueman-applet &
+
+~/.fehbg &
+
+pasystray &
+
+# hide mouse cursor when not typing
+exec unclutter &
+
+# autodetect monitors
+exec mons -a &

@@ -1,0 +1,10 @@
+set selection-clipboard clipboard
+
+set font 'FiraMono Nerd Font 20'
+
+map <C-=> zoom in
+map <C-+> zoom width
+map <C--> zoom out
+
+map j feedkeys "<C-Down>"
+map k feedkeys "<C-Up>"

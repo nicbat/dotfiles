@@ -9,6 +9,9 @@ alias ls='ls --color=auto'
 alias grep='grep --color=auto'
 # kitten ssh so I can do clear in attu
 alias attu='kitten ssh attu.cs.washington.edu'
+
+# open command
+alias open='xdg-open'
 PS1='[\u@\h \W]\$ '
 
 # close window when not in use for TMOUT time
