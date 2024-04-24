@@ -151,7 +151,7 @@
 }*/
 
 configuration {
-    modi: "run,drun,window";
+    modi: "run,drun,window,calc";
     icon-theme: "Oranchelo";
     show-icons: true;
     terminal: "kitty";
@@ -159,10 +159,11 @@ configuration {
     location: 0;
     disable-history: false;
     hide-scrollbar: true;
-    display-drun: "   Apps ";
+    display-drun: " 󰀻  Apps ";
     display-run: "   Run ";
     display-window: "   Window";
     display-Network: " 󰅡  Network";
+    display-calc: "󰃬 Calc";
     sidebar-mode: true;
     dpi: 200;
 	font: "FiraMono Nerd Font 16";

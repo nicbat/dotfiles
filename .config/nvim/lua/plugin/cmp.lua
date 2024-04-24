@@ -7,7 +7,10 @@ function M.config()
         -- set prefix length for completion window to show up
         completion = {
             keyword_length = 3,
-        }
+        },
+        -- sources = {
+        --   { name = "copilot" },
+        -- },
     })
 end
 

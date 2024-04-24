@@ -11,10 +11,11 @@ blueman-applet &
 
 ~/.fehbg &
 
+# pulse audio systray
 pasystray &
+#
+# # autodetect monitors
+# exec mons -a &
 
 # hide mouse cursor when not typing
 exec unclutter &
-
-# autodetect monitors
-exec mons -a &
