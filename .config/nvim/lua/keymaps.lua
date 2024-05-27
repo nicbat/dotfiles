@@ -73,8 +73,8 @@ keymap("x", "<A-k>", ":move '<-2<CR>gv-gv", default_desc)
 
 -- Command --
 -- Menu navigation
-keymap("c", "<C-j>",  'pumvisible() ? "\\<C-n>" : "\\<C-j>"', { expr = true, noremap = true } )
-keymap("c", "<C-k>",  'pumvisible() ? "\\<C-p>" : "\\<C-k>"', { expr = true, noremap = true } )
+-- keymap("c", "<C-j>",  'pumvisible() ? "\\<C-n>" : "\\<C-j>"', { expr = true, noremap = true } )
+-- keymap("c", "<C-k>",  'pumvisible() ? "\\<C-p>" : "\\<C-k>"', { expr = true, noremap = true } )
 
 -- Telescope
 keymap("n", "<leader>ff", ":Telescope find_files<CR>", "find files")

@@ -19,3 +19,6 @@ pasystray &
 
 # hide mouse cursor when not typing
 exec unclutter &
+
+# NTP daemon to update systemtime on networks
+exec chronyd &
