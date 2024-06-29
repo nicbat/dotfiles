@@ -125,7 +125,7 @@ bindsym $mod+Shift+space floating toggle
 bindsym $mod+space focus mode_toggle
 
 # focus the parent container
-bindsym $mod+a focus parent
+# bindsym $mod+a focus parent
 
 # focus the child container
 #bindsym $mod+d focus child
@@ -215,8 +215,12 @@ bindsym $mod+Shift+s exec "flameshot gui"
 # 0 means no border at all
 default_border pixel 0
 
+set $bright sh ./scripts/brightness-notif.sh
+
+bindsym $mod+a exec --no-startup-id $bright
+
 # brightness keys
-bindsym XF86MonBrightnessUp exec --no-startup-id brightnessctl set +5
+bindsym XF86MonBrightnessUp exec --no-startup-id brightnessctl set +5, $brightness-notification
 bindsym XF86MonBrightnessDown exec --no-startup-id brightnessctl set 5-
 # shift brightness keys changes it faster
 bindsym Shift+XF86MonBrightnessUp exec --no-startup-id brightnessctl set +25
@@ -233,3 +237,49 @@ bindsym XF86AudioPlay exec playerctl play-pause
 
 # monitor daemon
 exec_always mons -a
+
+mode "mons" {
+  bindsym Left exec --no-startup-id mons -e left, mode "default"
+  bindsym Right exec --no-startup-id mons -e right, mode "default"
+  bindsym Up exec --no-startup-id mons -e top, mode "default"
+  bindsym Down exec --no-startup-id mons -e bottom, mode "default"
+  bindsym Return mode "default"
+  bindsym Escape mode "default"
+  bindsym $mod+m mode "default"
+}
+
+bindsym $mod+m mode "mons"
+
+# if you are on ws 1, then do mod+2 - you go to 2
+# if you do mod+2 again, you go to your prev one (ws 1)
+workspace_auto_back_and_forth yes
+
+
+
+# shutdown / restart / suspend...
+set $screen-lock exec light-locker-command -l
+set $shutdown-notif exec dunstify -h string:x-dunst-stack-tag:shutdown -i "no icon" "Power Options" "(l) lock\n(e) logout\n(s) suspend\n(h) hibernate\n(r) reboot\n(CTRL+s) shutdown\n(Esc/Enter) Cancel"
+set $shutdown-notif-cancel exec dunstify -h string:x-dunst-stack-tag:shutdown -i "no icon" "Power Options" "Cancelled"
+# set $shutdown-notif exec dunstify -a "poweroptions" -i "no icon" "Power Options" "(l) lock\n(e) logout\n(s) suspend\n(h) hibernate\n(r) reboot\n(CTRL+s) shutdown\n(Esc/Enter) Cancel"
+# set $shutdown-notif-cancel exec dunstify -a "poweroptions" -i "no icon" "Power Options" "Cancelled"
+
+mode "mode_system" {
+    bindsym l exec --no-startup-id $screen-lock, mode "default"
+    bindsym e exec --no-startup-id i3-msg exit, mode "default"
+    bindsym s exec --no-startup-id $screen-lock && systemctl suspend, mode "default"
+    bindsym h exec --no-startup-id $screen-lock && systemctl hibernate, mode "default"
+    bindsym r exec --no-startup-id systemctl reboot, mode "default"
+    bindsym Ctrl+s exec --no-startup-id systemctl poweroff -i, mode "default"
+
+    # back to normal: Enter or Escape
+    bindsym Return exec $shutdown-notif-cancel, mode "default"
+    bindsym Escape exec $shutdown-notif-cancel, mode "default"
+}
+
+bindsym $mod+BackSpace exec $shutdown-notif, mode "mode_system"
+#---
+
+bindsym $mod+t exec "~/Scripts/toggle-touchpad.sh"
+
+# move focused workspace between monitors
+bindsym $mod+Ctrl+greater move workspace to output next

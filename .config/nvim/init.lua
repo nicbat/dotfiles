@@ -26,7 +26,7 @@ Spec('plugin.cmp')
 
 Spec('plugin.lualine')
 Spec('plugin.whichkey')
-Spec('plugin.comment')
+-- Spec('plugin.comment') -- don't need anymore, NVIM 0.10 does this by default
 Spec('plugin.gitsigns')
 Spec('plugin.vimray')
 -- Startup, I don't feel like using it rn
@@ -35,9 +35,10 @@ Spec('plugin.autoclose')
 Spec('plugin.autotag')
 -- Terminal, might not need because of i3
 -- Spec('plugin.terminal')
-
+Spec('plugin.cokeline')
 
 require('plugin.lazy')
 require('keymaps')
 
-require('plugin.cmp')
+-- require('plugin.cmp')
+

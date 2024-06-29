@@ -9,10 +9,39 @@ alias ls='ls --color=auto'
 alias grep='grep --color=auto'
 # kitten ssh so I can do clear in attu
 alias attu='kitten ssh attu.cs.washington.edu'
+alias hyak='ssh hyak'
 
 # open command
 alias open='xdg-open'
 PS1='[\u@\h \W]\$ '
+
+# simple
+alias v='nvim'
+alias z='cd'
+alias c='clear'
+alias la='ls -a'
+
+# cd silliness
+alias ..="cd .."
+alias ...="cd ../.."
+alias ....="cd ../../.."
+alias .....="cd ../../../.."
+
+# filesizes
+alias sizecheck='ncdu'
+
+# pacman and yay
+# alias pacupdate='sudo pacman -Syu'
+alias pacsearch='pacman -Q | grep '
+# alias pacget='sudo pacman -S'
+
+# tree with a little bit more formatting
+alias tree='tree --dirsfirst -F'
+
+# some folder aliases
+alias uw='cd ~/Projects/uwcs'
+
+
 
 # close window when not in use for TMOUT time
 #TMOUT=120
@@ -57,3 +86,9 @@ if [ -f '/home/nicbat/Sources/google-cloud-sdk/completion.bash.inc' ]; then . '/
 
 # start zoxide, replacing the cd command
 eval "$(zoxide init bash --cmd cd)"
+
+# alias for ssh to allow for kitty to work properly
+# [ "$TERM" = "xterm-kitty" ] && alias ssh="kitty +kitten ssh"
+
+# set EDITOR to nvim
+export EDITOR=/usr/bin/nvim

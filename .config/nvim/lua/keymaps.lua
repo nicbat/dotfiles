@@ -79,6 +79,7 @@ keymap("x", "<A-k>", ":move '<-2<CR>gv-gv", default_desc)
 -- Telescope
 keymap("n", "<leader>ff", ":Telescope find_files<CR>", "find files")
 keymap("n", "<leader>fg", ":Telescope live_grep<CR>", "grep files")
+keymap("n", "<leader>fb", ":Telescope buffers<CR>", "find buffers")
 
 -- LSP Keymaps
 -- I really should go through these and make sure I actually know what they mean
@@ -97,3 +98,37 @@ keymap("n", "<leader>e", ":NvimTreeToggle<CR>", "Open File Tree")
 
 -- Ray Screenshot
 keymap("v", "<leader>s", ":Ray<CR>", "Ray Screenshot")
+
+-- Commmenting to <leader> / 
+-- keymap("n", "<leader>/", "gcc", "Comment Line")
+-- keymap("v", "<leader>/", "gc", "Comment Line")
+
+-- buffers
+keymap("n", "<leader>bd", ":bd<CR>", "Close Buffer")
+-- keymap("n", "<Tab>", ":bn<CR>", "Next Buffer")
+-- keymap("n", "<leader><Shift><Tab>", ":bp<CR>", "Previous Buffer")
+-- leader tab 
+
+local map = vim.api.nvim_set_keymap
+
+keymap("n", "<Tab>", "<Plug>(cokeline-focus-next)", "Next Buffer")
+keymap("n", "<S-Tab>", "<Plug>(cokeline-focus-prev)", "Previous Buffer")
+keymap("n", "<Leader>bn", "<Plug>(cokeline-switch-next)", "Switch with next buffer")
+keymap("n", "<Leader>bp", "<Plug>(cokeline-switch-prev)", "Switch with previous buffer")
+-- keymap("n", "<Leader>bf", "<Plug>(cokeline-pick-focus)", "Focus Pick Letter")
+
+
+-- for i = 1, 9 do
+--   map(
+--     "n",
+--     ("<F%s>"):format(i),
+--     ("<Plug>(cokeline-focus-%s)"):format(i),
+--     { silent = true }
+--   )
+--   map(
+--     "n",
+--     ("<Leader>%s"):format(i),
+--     ("<Plug>(cokeline-switch-%s)"):format(i),
+--     { silent = true }
+--   )
+-- end
