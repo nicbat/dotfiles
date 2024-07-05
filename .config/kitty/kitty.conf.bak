@@ -2,11 +2,11 @@
 
 
 # BEGIN_KITTY_THEME
-# Everforest Dark Hard
+# Catppuccin-Mocha
 include current-theme.conf
 # END_KITTY_THEME
 #
-font_size 28
+font_size 24
 
 font_family FiraMono Nerd Font Mono
 

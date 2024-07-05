@@ -22,3 +22,16 @@ exec unclutter &
 
 # NTP daemon to update systemtime on networks
 exec chronyd &
+
+# set option to switch us,ru keyboard
+# exec setxkbmap us,ru -option grp:alt_caps_toggle &
+
+
+# japanese IME
+
+exec fcitx5 &
+
+# env variables for fcitx
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx

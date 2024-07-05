@@ -9,7 +9,7 @@ alias ls='ls --color=auto'
 alias grep='grep --color=auto'
 # kitten ssh so I can do clear in attu
 alias attu='kitten ssh attu.cs.washington.edu'
-alias hyak='ssh hyak'
+alias hyak='kitten ssh hyak'
 
 # open command
 alias open='xdg-open'
