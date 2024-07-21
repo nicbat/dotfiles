@@ -169,4 +169,6 @@ configuration {
 	font: "FiraMono Nerd Font 16";
 }
 
-@theme "custom-catppuccin-mocha"
+/*@theme "custom-catppuccin-mocha"*/
+
+@theme "everforest"

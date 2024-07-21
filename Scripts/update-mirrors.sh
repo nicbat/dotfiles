@@ -1,3 +1,4 @@
+#!/bin/bash
 export TMPFILE="$(mktemp)"; \
     sudo true; \
     rate-mirrors --save=$TMPFILE arch --max-delay=43200 \

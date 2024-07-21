@@ -53,17 +53,17 @@ super + shift + s
   flameshot gui
 
 # mons hotkeys
-super + m ; Left
-  mons -e left 
-
-super + m ; Right
-  mons -e right
-
-super + m ; Up
-  mons -e top
-
-super + m ; Down
-  mons -e bottom
+# super + m ; Left
+#   mons -e left 
+#
+# super + m ; Right
+#   mons -e right
+#
+# super + m ; Up
+#   mons -e top
+#
+# super + m ; Down
+#   mons -e bottom
 
 #
 # bspwm hotkeys
@@ -75,7 +75,7 @@ super + m ; Down
 
 # restart bspwm
 super + shift + r
-  bspc wm -r
+  bspc wm -r & ~/./Scripts/reload-obsidian-hotkeys.sh & ~/./.fehbg
 
 # close and kill
 # super + {_,shift + }q
@@ -126,9 +126,14 @@ super + {_,shift + }c
 	bspc node -f {next,prev}.local.!hidden.window
 
 # focus the next/previous desktop in the current monitor
-super + bracket{left,right}
-	bspc desktop -f {prev,next}.local
+# super + bracket{left,right}
+# 	bspc desktop -f {prev,next}.local
 
+super + ctrl + {Left,Right}
+  bspc desktop -f {prev,next}.local
+
+super + ctrl + {h,l}
+  bspc desktop -f {prev,next}.local
 # focus the last node/desktop
 # super + {grave,Tab}
 # 	bspc {node,desktop} -f last
