@@ -1,0 +1,23 @@
+# Position
+anchor=top-right
+margin=10
+
+# Style
+font=monospace 10
+background-color=#1e1e2e
+text-color=#cdd6f4
+border-color=#89b4fa
+border-size=2
+border-radius=10
+
+# Behavior
+default-timeout=5000
+ignore-timeout=1
+
+# Dimensions
+width=300
+height=150
+padding=15
+
+# Grouping
+group-by=app-name
