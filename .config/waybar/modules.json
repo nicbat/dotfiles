@@ -1,0 +1,104 @@
+{
+    "custom/arch": {
+        "format": "󰣇",
+        "tooltip": true,
+        "tooltip-format": "btw"
+    },
+    "niri/workspaces": {
+        "format": "{index}",
+    },
+    "idle_inhibitor": {
+        "format": "{icon}",
+        "format-icons": {
+            "activated": "",
+            "deactivated": ""
+        }
+    },
+    "pulseaudio": {
+        "format": "{icon}  {volume}%",
+        "format-bluetooth": "{icon} {volume}%  {format_source}",
+        "format-bluetooth-muted": " {icon} {format_source}",
+        "format-source": " {volume}%",
+        "format-source-muted": "",
+        "format-icons": {
+            "headphone": "",
+            "phone": "",
+            "portable": "",
+            "car": "",
+            "default": ["", "", ""]
+        },
+        "on-click": "pavucontrol"
+    },
+    "network": {
+        "interval": 10,
+        "format-wifi": "   {essid}",
+        "format-ethernet": "{ipaddr}/{cidr} ",
+        "tooltip-format": "{ifname} via {gwaddr} ",
+        "format-linked": "{ifname} (No IP) ",
+        "format-disconnected": "Disconnected ⚠"
+    },
+    "cpu": {
+        "format": "  {usage}%",
+        "tooltip": true
+    },
+    "memory": {
+        "format": "  {}%",
+	"tooltip": true
+    },
+    "disk": {
+        "format": " {percentage_used}%",
+        "tooltip": true
+    },
+    "temperature": {
+        "interval": 10,
+        "hwmon-path": "/sys/devices/platform/coretemp.0/hwmon/hwmon4/temp1_input",
+        "critical-threshold": 100,
+        "format-critical": " {temperatureC}",
+        "format": " {temperatureC}°C"
+    },
+    "hyprland/language": {
+       "format": "  {}",
+       "format-en": "EN",
+       "format-ru": "RU"
+    },
+    "battery": {
+        "states": {
+            "warning": 30,
+            "critical": 15
+        },
+        "format": "{icon}  {capacity}%",
+        "format-full": "{icon}  {capacity}%",
+        "format-charging": "󱐋  {capacity}%",
+        "format-plugged": "󱐋 {capacity}%",
+        "format-alt": "{time}  {icon}",
+        "format-icons": ["", "", "", "", ""]
+    },
+    "clock": {
+        "format": "{:%H:%M | W%U | %y%m%d} ",
+        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+        "format-alt": "{:%H:%M:%S | W%U | %a | %y%m%d} ",
+        "interval": 1
+    },
+    "tray": {
+        "icon-size": 16
+    },
+    "custom/tray": {
+        "on-click": "sh ~/Scripts/traycollapse.sh",
+        "format": "󰣇"
+    },
+    "custom/moon_phase": {
+        "exec": "~/.config/waybar/Scripts/moon_phase/moon_env/bin/python ~/.config/waybar/Scripts/moon_phase/moon_phase.py",
+        "interval": 3600,
+        "return-type": "json"
+    },
+    "custom/sunset": {
+        "exec": "~/.config/waybar/Scripts/moon_phase/moon_env/bin/python ~/.config/waybar/Scripts/moon_phase/sunset.py",
+        "interval": 3600,
+        "return-type": "json"
+    },
+    "custom/weather": {
+        "exec": "python ~/.config/waybar/Scripts/weather.py",
+        "interval": 600,
+        "return-type": "json"
+    }
+}

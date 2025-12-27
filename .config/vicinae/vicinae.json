@@ -1,5 +1,5 @@
 {
-    "closeOnFocusLoss": false,
+    "closeOnFocusLoss": true,
     "considerPreedit": false,
     "faviconService": "twenty",
     "font": {
@@ -13,7 +13,7 @@
         "searchFiles": false
     },
     "theme": {
-        "name": "vicinae-dark"
+        "name": "catppuccin-mocha"
     },
     "window": {
         "csd": true,
