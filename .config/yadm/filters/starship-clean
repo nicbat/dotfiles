@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# git clean filter: keep Noctalia's generated palette out of the stored file.
+#
+# Noctalia injects a wallpaper-derived palette between the NOCTALIA markers and
+# its apply hook appends blank lines on every run - this file had accumulated a
+# run of 147 of them. Both are generated noise: the palette regenerates from the
+# wallpaper, so storing it only produces a diff every time the wallpaper changes.
+#
+# Stored form keeps the markers (so the structure is obvious) but empties the
+# body, and collapses any run of 3+ blank lines to 2.
+set -uo pipefail
+awk '
+  /^# >>> NOCTALIA STARSHIP PALETTE >>>/ { print; print "# (palette body stripped by the starship-clean filter; Noctalia regenerates it)"; skip = 1; next }
+  /^# <<< NOCTALIA STARSHIP PALETTE <<</ { skip = 0 }
+  !skip
+' | awk '
+  /^[[:space:]]*$/ { blank++; next }
+  { if (blank > 2) blank = 2; while (blank-- > 0) print ""; blank = 0; print }
+  END { if (blank > 2) blank = 2; while (blank-- > 0) print "" }
+'

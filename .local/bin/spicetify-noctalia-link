@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""Point noctalia's colour pipeline at any spicetify theme.
+
+noctalia ships a built-in `spicetify` template, but it hardcodes both the
+[Comfy] scheme name and the output path ~/.config/spicetify/Themes/Comfy/color.ini
+(see /etc/xdg/quickshell/noctalia-shell/Services/Theming/TemplateRegistry.qml).
+This script replaces that with a *user* template targeting whichever theme you
+want, deriving the colour keys from the theme's own color.ini so themes with
+non-standard keys still get every value they expect.
+
+Usage:  spicetify-noctalia-link <ThemeName> [SchemeName]
+        spicetify-noctalia-link --list
+"""
+import json, os, re, shutil, subprocess, sys
+
+HOME = os.path.expanduser("~")
+THEMES = f"{HOME}/.config/spicetify/Themes"
+TPL_DIR = f"{HOME}/.config/noctalia/templates"
+USER_TPL = f"{HOME}/.config/noctalia/user-templates.toml"
+
+# noctalia's own mapping, copied verbatim from its built-in spicetify.ini so the
+# palette you already have is preserved exactly.
+BASE = {
+    "text": "on_surface", "subtext": "on_surface_variant",
+    "main": "surface", "main-elevated": "surface",
+    "main-transition": "surface_container_lowest",
+    "highlight": "surface_container_low",
+    "highlight-elevated": "surface_container_highest",
+    "sidebar": "surface", "player": "surface", "card": "surface",
+    "shadow": "surface", "selected-row": "on_surface",
+    "button": "primary", "button-active": "primary",
+    # noctalia's built-in maps button-disabled -> primary, but themes use this key
+    # for muted furniture (Sleek: progress track, scrollbar, disabled text, menu
+    # dividers). primary makes those glow with the accent. outline is correct.
+    "button-disabled": "outline_variant",
+    "tab-active": "surface", "notification": "tertiary",
+    "notification-error": "error", "misc": "surface",
+    "play-button": "secondary", "play-button-active": "secondary",
+    "progress-fg": "primary", "progress-bg": "surface",
+    "heart": "error", "pagelink-active": "on_tertiary_container",
+    "radio-btn-active": "on_tertiary_container",
+}
+# Keys noctalia doesn't define but other themes use.
+EXTRA = {
+    "accent": "primary", "accent-active": "primary",
+    "border": "outline", "border-active": "outline_variant",
+    "equalizer": "primary", "header": "surface_container_high",
+    "banner": "surface_container", "link": "primary",
+    "link-hover": "primary_container", "nav-active": "surface_container_high",
+    "sidebar-text": "on_surface", "subtext-alt": "on_surface_variant",
+    "dialog": "surface_container_high", "overlay": "surface_dim",
+    "hover": "hover", "primary": "primary", "secondary": "secondary",
+    # Sleek's key set (verified against its user.css selectors)
+    "nav-active-text": "on_surface", "main-secondary": "surface_container",
+    "button-secondary": "on_surface_variant", "playback-bar": "primary",
+    "tertiary": "tertiary", "error": "error", "surface": "surface",
+}
+
+def guess(key):
+    k = key.lower()
+    if any(t in k for t in ("text", "-fg", "foreground", "on-", "icon")):
+        return "on_surface"
+    if any(t in k for t in ("-bg", "background", "base", "bar", "panel")):
+        return "surface"
+    return "primary"
+
+def keys_for(theme):
+    """Read colour keys from the theme's pristine color.ini."""
+    for name in ("color.ini.orig", "color.ini"):
+        p = f"{THEMES}/{theme}/{name}"
+        if os.path.isfile(p):
+            keys, seen = [], set()
+            for line in open(p, encoding="utf-8", errors="replace"):
+                m = re.match(r"\s*([A-Za-z0-9_-]+)\s*=", line)
+                if m and m.group(1) not in seen:
+                    seen.add(m.group(1)); keys.append(m.group(1))
+            if keys:
+                return keys, p
+    return list(BASE), None
+
+def main():
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+        print(__doc__); return 0
+    if sys.argv[1] == "--sync":
+        # Re-render every registered user template using the live wallpaper
+        # colours, exactly as noctalia does internally. Use when noctalia
+        # hasn't picked up a newly added template yet.
+        proc = subprocess.run(["qs", "-c", "noctalia-shell", "ipc", "call",
+                               "wallpaper", "get", ""],
+                              capture_output=True, text=True)
+        wp = proc.stdout.strip()
+        if not os.path.isfile(wp):
+            print(f"error: could not resolve current wallpaper (got {wp!r})", file=sys.stderr)
+            return 1
+        settings = json.load(open(f"{HOME}/.config/noctalia/settings.json"))
+        cs = settings.get("colorSchemes", {})
+        mode = "dark" if cs.get("darkMode", True) else "light"
+        stype = cs.get("generationMethod", "tonal-spot")
+        script = ("/etc/xdg/quickshell/noctalia-shell/Scripts/python/src/"
+                  "theming/template-processor.py")
+        r = subprocess.run(["python3", script, wp, "--scheme-type", stype,
+                            "--config", USER_TPL, "--default-mode", mode])
+        print(f"  synced from {os.path.basename(wp)} ({stype}, {mode})")
+        return r.returncode
+
+    if sys.argv[1] == "--list":
+        for d in sorted(os.listdir(THEMES)):
+            if os.path.isdir(f"{THEMES}/{d}"):
+                print(" ", d)
+        return 0
+
+    theme = sys.argv[1]
+    scheme = sys.argv[2] if len(sys.argv) > 2 else "noctalia"
+    tdir = f"{THEMES}/{theme}"
+    if not os.path.isdir(tdir):
+        print(f"error: no theme '{theme}' in {THEMES}", file=sys.stderr)
+        print("       run with --list to see what's installed", file=sys.stderr)
+        return 1
+
+    # 1. preserve the theme's own colour schemes before we take the file over
+    live, orig = f"{tdir}/color.ini", f"{tdir}/color.ini.orig"
+    if os.path.isfile(live) and not os.path.isfile(orig):
+        shutil.copy2(live, orig)
+        print(f"  backed up theme's own color.ini -> {orig}")
+
+    # 2. derive the key set this theme actually expects
+    keys, src = keys_for(theme)
+    print(f"  {len(keys)} colour keys derived from {src or 'built-in default set'}")
+
+    unmapped = []
+    lines = [f"[{scheme}]"]
+    width = max(len(k) for k in keys)
+    for k in keys:
+        var = BASE.get(k) or EXTRA.get(k)
+        if not var:
+            var = guess(k); unmapped.append(k)
+        lines.append(f"{k.ljust(width)} = {{{{colors.{var}.default.hex_stripped}}}}")
+    tpl = f"{TPL_DIR}/spicetify-{theme.lower()}.ini"
+    os.makedirs(TPL_DIR, exist_ok=True)
+    open(tpl, "w").write("\n".join(lines) + "\n")
+    print(f"  wrote template {tpl}")
+    if unmapped:
+        print(f"  note: guessed a mapping for {len(unmapped)} unknown key(s): {', '.join(unmapped)}")
+
+    # 3. register it as a noctalia user template (replacing any prior spicetify one)
+    block = (
+        f'[templates.spicetify-{theme.lower()}]\n'
+        f'input_path = "~/.config/noctalia/templates/spicetify-{theme.lower()}.ini"\n'
+        f'output_path = "~/.config/spicetify/Themes/{theme}/color.ini"\n'
+        f"post_hook = 'spicetify -q apply --no-restart'\n"
+    )
+    existing = open(USER_TPL).read() if os.path.isfile(USER_TPL) else ""
+    existing = re.sub(r'(?ms)^\[templates\.spicetify-[^\]]*\].*?(?=^\[|\Z)', '', existing)
+    open(USER_TPL, "w").write(existing.rstrip("\n") + ("\n\n" if existing.strip() else "") + block)
+    print(f"  registered user template in {USER_TPL}")
+
+    # 4. point spicetify at the theme + our scheme
+    subprocess.run(["spicetify", "config", "current_theme", theme, "color_scheme", scheme],
+                   check=False, capture_output=True)
+    print(f"  spicetify config -> current_theme={theme} color_scheme={scheme}")
+
+    if theme == "Comfy":
+        print("\n  ! target is Comfy, which noctalia's BUILT-IN template also writes.")
+        print("    Disable the built-in 'spicetify' template in noctalia settings to avoid a clash.")
+    else:
+        print("\n  Next: disable the built-in 'spicetify' template in noctalia's settings")
+        print("  (it keeps rewriting Themes/Comfy/color.ini, harmless but redundant),")
+        print("  then re-apply your colour scheme in noctalia to regenerate colours.")
+    return 0
+
+sys.exit(main())

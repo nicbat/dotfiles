@@ -2,3 +2,8 @@
 input_path = "~/.config/nvim/lua/matugen-template.lua"
 output_path = "~/.config/nvim/lua/matugen.lua"
 post_hook = 'pkill -SIGUSR1 nvim'
+
+[templates.spicetify-sleek]
+input_path = "~/.config/noctalia/templates/spicetify-sleek.ini"
+output_path = "~/.config/spicetify/Themes/Sleek/color.ini"
+post_hook = 'spicetify -q apply --no-restart'

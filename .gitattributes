@@ -1,0 +1,9 @@
+# Clean filters for files that other programs rewrite behind your back.
+# These change only what git STORES, never the file on disk. Filter bodies and
+# the reasoning live in ~/.config/yadm/filters/.
+#
+# The filter definitions themselves are repo-LOCAL git config, which does not
+# survive a clone - `yadm bootstrap` re-registers them on a new machine.
+
+.config/noctalia/settings.json  filter=json-canonical
+.config/starship.toml           filter=starship-clean

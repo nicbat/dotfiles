@@ -20,11 +20,6 @@
          "preferences": {
             "network-cli-tool": "nmcli"
          }
-      },
-      "@sovereign/store.vicinae.awww-switcher": {
-         "preferences": {
-            "wallpaperPath": "~/Picutres/Backgrounds"
-         }
       }
    }
 }

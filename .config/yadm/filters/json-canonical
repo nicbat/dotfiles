@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""git clean filter: store JSON in a canonical form.
+
+Noctalia rewrites settings.json with unstable key ordering, so a one-value
+change showed up as a 1470-line diff (measured: 367 keys identical, 338 leaf
+values, exactly one actually changed). Sorting keys on the way into the object
+store makes the stored form stable, so a real change is visible as a real diff.
+
+Invalid JSON is passed through untouched - a filter must never be able to
+corrupt the thing it is filtering.
+"""
+import json
+import sys
+
+data = sys.stdin.buffer.read()
+try:
+    obj = json.loads(data)
+except Exception:
+    sys.stdout.buffer.write(data)
+    sys.exit(0)
+sys.stdout.write(json.dumps(obj, sort_keys=True, indent=2, ensure_ascii=False) + "\n")
