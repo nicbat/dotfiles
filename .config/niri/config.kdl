@@ -1,18 +1,56 @@
 // This config is in the KDL format: https://kdl.dev
 // "/-" comments out the following node.
 // Check the wiki for a full description of the configuration:
-// https://yalter.github.io/niri/Configuration:-Introduction
+// https://niri-wm.github.io/niri/Configuration:-Introduction
 
 // custom stuff
 spawn-sh-at-startup "vicinae server"
 
+// Wallpaper is owned by Noctalia, which draws it on its own layer-shell
+// Background surface (namespace noctalia-background-*, Modules/Background/Background.qml).
+// The old awww daemon painted a second wallpaper underneath that one, where
+// nothing could see it, and its retry loop briefly fought Noctalia at boot.
+// Rollback: spawn-at-startup "awww-daemon"
+//           spawn-sh-at-startup "until awww img ~/Pictures/Backgrounds/bright-tree.jpg; do sleep 0.2; done"
+
+// Idle management is now owned by Noctalia's IdleService (Settings > Idle),
+// which uses ext-idle-notify-v1 natively: lock at 5 min, screen off at 6 min,
+// with a 5s fade and automatic DPMS restore on any input. Letting one process
+// own both stages is what keeps the session-lock surface and the monitor
+// power-off from racing each other.
+//
+// swayidle is kept ONLY for before-sleep: Noctalia's `lockOnSuspend` covers
+// its own idle-triggered suspend, but it installs no logind PrepareForSleep
+// handler, so a lid close would otherwise suspend unlocked. -w holds the
+// systemd sleep inhibitor until the lock surface is actually up.
+spawn-sh-at-startup "swayidle -w before-sleep 'qs -c noctalia-shell ipc call lockScreen lock; sleep 1'"
+
+// Previous setup, kept for reference / quick rollback:
+// spawn-sh-at-startup "swayidle -w timeout 300 'swaylock -f -c 000000' timeout 360 'niri msg action power-off-monitors' resume 'niri msg action power-on-monitors' before-sleep 'swaylock -f -c 000000'"
+
+// fcitx5 is for japanese ime
+spawn-at-startup "fcitx5" "-d"
+
 // hides the window headers
 prefer-no-csd
+
+// Session environment. Lives here rather than /etc/environment so it is
+// user-scoped and travels with the dotfiles.
+// QT_QPA_PLATFORMTHEME points Qt apps at qt6ct, which is configured to read
+// Noctalia's generated colour scheme - so Qt follows the wallpaper palette.
+environment {
+    QT_QPA_PLATFORMTHEME "qt6ct"
+
+    // Bibata-Modern-Ice is the light variant - readable against Noctalia's
+    // dark surface (#171214). Swap to -Classic for black, -Amber for gold.
+    XCURSOR_THEME "Bibata-Modern-Ice"
+    XCURSOR_SIZE "24"
+}
 
 
 // Input device configuration.
 // Find the full list of options on the wiki:
-// https://yalter.github.io/niri/Configuration:-Input
+// https://niri-wm.github.io/niri/Configuration:-Input
 input {
     keyboard {
         xkb {
@@ -26,6 +64,8 @@ input {
             // If this section is empty, niri will fetch xkb settings
             // from org.freedesktop.locale1. You can control these using
             // localectl set-x11-keymap.
+	    // options "caps:escape_shifted_capslock"
+	    options "caps:escape"
         }
 
         // Enable numlock on startup, omitting this setting disables it.
@@ -80,7 +120,7 @@ input {
 // by running `niri msg outputs` while inside a niri instance.
 // The built-in laptop monitor is usually called "eDP-1".
 // Find more information on the wiki:
-// https://yalter.github.io/niri/Configuration:-Outputs
+// https://niri-wm.github.io/niri/Configuration:-Outputs
 // Remember to uncomment the node by removing "/-"!
 /-output "eDP-1" {
     // Uncomment this line to disable this output.
@@ -113,9 +153,36 @@ input {
     position x=1280 y=0
 }
 
+// Actual output layout: P27h-28 | P27h-10 side by side on top, laptop below.
+// Monitors are matched by make/model/serial rather than DP-4/DP-6 so the
+// arrangement survives connector renumbering across reboots and docks
+// (the daisy chain does renumber - P27h-10 has shown up as DP-5 and DP-6).
+// To rearrange: run `wdisplays`, drag things around, then re-save the
+// positions here (`niri msg outputs` prints the logical positions).
+// wdisplays only applies at runtime - it cannot write this file.
+output "Lenovo Group Limited P27h-28 V909G8F7" {
+    mode "2560x1440@59.951"
+    scale 1
+    position x=0 y=0
+}
+
+output "Lenovo Group Limited LEN P27h-10 0x354B4B37" {
+    mode "2560x1440@59.951"
+    scale 1
+    position x=2560 y=0
+}
+
+// Logical size 1728x1080 at scale 2. y=1440 puts it directly below the top
+// row; x=588 is where it was dragged, roughly under the left monitor.
+output "eDP-1" {
+    mode "3456x2160@60.001"
+    scale 2
+    position x=588 y=1440
+}
+
 // Settings that influence how windows are positioned and sized.
 // Find more information on the wiki:
-// https://yalter.github.io/niri/Configuration:-Layout
+// https://niri-wm.github.io/niri/Configuration:-Layout
 layout {
     // Set gaps around windows in logical pixels.
     gaps 16
@@ -275,8 +342,9 @@ layout {
 // which may be more convenient to use.
 // See the binds section below for more spawn examples.
 
-// This line starts waybar, a commonly used bar for Wayland compositors.
-spawn-at-startup "waybar"
+// Noctalia (spawned at the bottom of this file) is the bar now, so waybar
+// is disabled to avoid running two bars at once.
+// spawn-at-startup "waybar"
 
 // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:
 // spawn-sh-at-startup "qs -c ~/source/qs/MyAwesomeShell"
@@ -303,7 +371,7 @@ screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 
 // Animation settings.
 // The wiki explains how to configure individual animations:
-// https://yalter.github.io/niri/Configuration:-Animations
+// https://niri-wm.github.io/niri/Configuration:-Animations
 animations {
     // Uncomment to turn off all animations.
     // off
@@ -314,7 +382,7 @@ animations {
 
 // Window rules let you adjust behavior for individual windows.
 // Find more information on the wiki:
-// https://yalter.github.io/niri/Configuration:-Window-Rules
+// https://niri-wm.github.io/niri/Configuration:-Window-Rules
 
 // Work around WezTerm's initial configure bug
 // by setting an empty default-column-width.
@@ -335,6 +403,24 @@ window-rule {
     open-floating true
 }
 
+// Open Claude Quick Entry less weirdly.
+window-rule {
+    match app-id=r#"^claude-quick-entry$"#
+    open-focused true
+    default-floating-position x=32 y=32 relative-to="top-right"
+    focus-ring {
+        off
+    }
+    border {
+        off
+    }
+    shadow {
+        off
+    }
+}
+
+
+
 // Example: block out two password managers from screen capture.
 // (This example rule is commented out with a "/-" in front.)
 /-window-rule {
@@ -348,11 +434,38 @@ window-rule {
     // block-out-from "screencast"
 }
 
-// Example: enable rounded corners for all windows.
-// (This example rule is commented out with a "/-" in front.)
+// Rounded corners + blur for all windows (recommended by Noctalia).
 window-rule {
-    geometry-corner-radius 12
+    geometry-corner-radius 20
     clip-to-geometry true
+    background-effect {
+        blur true
+        xray false
+    }
+}
+
+// ── Noctalia integration ──────────────────────────────────────────────
+// Blurred wallpaper behind the overview. Requires Noctalia's
+// "Enable overview wallpaper" toggle = ON (Wallpaper settings tab).
+layer-rule {
+    match namespace="^noctalia-overview*"
+    place-within-backdrop true
+}
+
+// Keep blur compositing correct on Noctalia's own surfaces.
+layer-rule {
+    match namespace="^noctalia-(background|launcher-overlay|dock)-.*$"
+    background-effect {
+        xray false
+    }
+}
+
+// Blur tuning (Niri 26.04+).
+blur {
+    passes 2
+    offset 3.0
+    noise 0.03
+    saturation 1.0
 }
 
 binds {
@@ -371,9 +484,8 @@ binds {
     Mod+Shift+Slash { show-hotkey-overlay; }
 
     // Suggested binds for running programs: terminal, app launcher, screen locker.
-    Mod+T hotkey-overlay-title="Open a Terminal: foot" { spawn "foot"; }
-    Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
-    Super+Alt+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock"; }
+    Mod+T hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty"; }
+    Super+Alt+L hotkey-overlay-title="Lock the Screen: Noctalia" { spawn-sh "qs -c noctalia-shell ipc call lockScreen lock"; }
 
     // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.
     // Note: the entire command goes as a single argument. It's passed verbatim to `sh -c`.
@@ -384,8 +496,10 @@ binds {
     // The allow-when-locked=true property makes them work even when the session is locked.
     // Using spawn-sh allows to pass multiple arguments together with the command.
     // "-l 1.0" limits the volume to 100%.
-    XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+ -l 1.0"; }
-    XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"; }
+    XF86AudioRaiseVolume       allow-when-locked=true { spawn "/home/nicbat/.config/niri/scripts/volume.sh" "up"; }
+    XF86AudioLowerVolume       allow-when-locked=true { spawn "/home/nicbat/.config/niri/scripts/volume.sh" "down"; }
+    Shift+XF86AudioRaiseVolume allow-when-locked=true { spawn "/home/nicbat/.config/niri/scripts/volume.sh" "up" "10"; }
+    Shift+XF86AudioLowerVolume allow-when-locked=true { spawn "/home/nicbat/.config/niri/scripts/volume.sh" "down" "10"; }
     XF86AudioMute        allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; }
     XF86AudioMicMute     allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"; }
 
@@ -399,8 +513,10 @@ binds {
     // Example brightness key mappings for brightnessctl.
     // You can use regular spawn with multiple arguments too (to avoid going through "sh"),
     // but you need to manually put each argument in separate "" quotes.
-    XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "+10%"; }
-    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "10%-"; }
+    XF86MonBrightnessUp         allow-when-locked=true { spawn "/home/nicbat/.config/niri/scripts/brightness.sh" "up"; }
+    XF86MonBrightnessDown       allow-when-locked=true { spawn "/home/nicbat/.config/niri/scripts/brightness.sh" "down"; }
+    Shift+XF86MonBrightnessUp   allow-when-locked=true { spawn "/home/nicbat/.config/niri/scripts/brightness.sh" "up" "10"; }
+    Shift+XF86MonBrightnessDown allow-when-locked=true { spawn "/home/nicbat/.config/niri/scripts/brightness.sh" "down" "10"; }
 
     // Open/close the Overview: a zoomed-out view of workspaces and windows.
     // You can also move the mouse into the top-left hot corner,
@@ -628,17 +744,36 @@ binds {
 
     // Powers off the monitors. To turn them back on, do any input like
     // moving the mouse or pressing any other key.
-    Mod+Shift+P { power-off-monitors; }
+    // Mod+Shift+P { power-off-monitors; }
 
     // vicinae toggle (similar to raycast)
 	Mod+Space repeat=false { spawn "vicinae" "toggle"; }
 
-	Mod+Shift+S {
-    spawn "sh" "-c" "grim -g \"$(slurp)\" - | wl-copy";
+    Mod+Shift+S {
+        spawn-sh "grim -g \"$(slurp -d)\" - | wl-copy && notify-send 'Screenshot' 'Copied to clipboard'";
     }
+
+    Mod+Ctrl+Shift+S {
+        spawn-sh "grim -t ppm -g \"$(slurp -d)\" - | satty --filename -";
+    }
+
+
+    // lock the screen
+    Mod+Shift+P { spawn-sh "qs -c noctalia-shell ipc call lockScreen lock"; }
+
+    // Reload the niri config and fully restart the Noctalia shell.
+    // (niri also auto-reloads the config on save; this is for an on-demand refresh.)
+    // Noctalia has no reload IPC, so it gets killed and re-daemonized.
+    Mod+Shift+W hotkey-overlay-title="Reload config + restart Noctalia" {
+        spawn-sh "niri msg action load-config-file; qs -c noctalia-shell kill; sleep 0.5; niri msg action spawn -- qs -c noctalia-shell";
+    }
+
+    Mod+Shift+C { spawn "claude-desktop" "--toggle"; }
 }
 
 debug {
 	honor-xdg-activation-with-invalid-serial
 	//wait-for-frame-completion-in-pipewire // shouldnt need this after niri v25.08
 }
+
+spawn-at-startup "qs" "-c" "noctalia-shell"

@@ -5,10 +5,9 @@
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
-alias ls='ls --color=auto'
 alias grep='grep --color=auto'
 # kitten ssh so I can do clear in attu
-# alias attu='kitten ssh attu.cs.washington.edu'
+# alias attu='ssh attu.cs.washington.edu'
 # alias hyak='kitten ssh hyak'
 
 # open command
@@ -19,7 +18,6 @@ PS1='[\u@\h \W]\$ '
 alias v='nvim'
 alias z='cd'
 alias c='clear'
-alias la='ls -a'
 
 # cd silliness
 alias ..="cd .."
@@ -45,28 +43,24 @@ alias tree='tree --dirsfirst -F'
 
 source /etc/profile
 
-# Load profiles from /etc/profile.d
-if test -d /etc/profile.d/; then
-	for profile in /etc/profile.d/*.sh; do
-		test -r "$profile && . $profile"
-	done
-	unset profile
-fi
+# NOTE: /etc/profile (sourced above) already loads /etc/profile.d/*.sh itself
+# and then does `unset -f append_path`. A second loop here re-ran those scripts
+# after the helper was gone, which is where the "append_path: command not found"
+# errors came from. Removed - `source /etc/profile` covers it.
 
 export CRYPTOGRAPHY_OPENSSL_NO_LEGACY=1
 
 function conda() {
-    unset -f conda
-    # <<< start else branch contents >>>
-    if [ -f "/opt/miniconda3/etc/profile.d/conda.sh" ]; then
-        . "/opt/miniconda3/etc/profile.d/conda.sh"
-    else
-        export PATH="/opt/miniconda3/bin:$PATH"
-    fi
-    # <<< end else branch contents >>>
-    conda "$@"
+  unset -f conda
+  # <<< start else branch contents >>>
+  if [ -f "/opt/miniconda3/etc/profile.d/conda.sh" ]; then
+    . "/opt/miniconda3/etc/profile.d/conda.sh"
+  else
+    export PATH="/opt/miniconda3/bin:$PATH"
+  fi
+  # <<< end else branch contents >>>
+  conda "$@"
 }
-
 
 # Created by `pipx` on 2024-03-16 14:03:36
 export PATH="$PATH:/home/nicbat/.local/bin"
@@ -78,6 +72,21 @@ export EDITOR=/usr/bin/nvim
 eval "$(zoxide init bash --cmd cd)"
 # zoxide ALSO wants to be at the end, but we'll ive starship priority and silence warnings with the following
 export _ZO_DOCTOR=0
+
+# ── modern CLI stack ──────────────────────────────────────────────────
+# eza replaces ls. Remove/adjust any line here you don't get on with.
+alias ls='eza --icons --group-directories-first'
+alias la='eza -a --icons --group-directories-first'
+alias ll='eza -l --icons --git --group-directories-first'
+alias lt='eza --tree --level=2 --icons'
+alias cat='bat'          # bat behaves exactly like cat when piped, so this is safe
+alias lg='lazygit'
+alias du='dust'
+
+# fzf: Ctrl-R history search, Ctrl-T file picker, Alt-C cd. Guarded so a
+# missing fzf doesn't spew errors on every new shell.
+[ -f /usr/share/fzf/key-bindings.bash ] && source /usr/share/fzf/key-bindings.bash
+[ -f /usr/share/fzf/completion.bash ]   && source /usr/share/fzf/completion.bash
 
 # make sure this is at the very end of the file
 eval "$(starship init bash)"

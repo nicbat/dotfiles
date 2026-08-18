@@ -1,0 +1,10 @@
+# Colours come from Noctalia's ghostty template, which regenerates
+# ~/.config/ghostty/themes/noctalia on every palette change.
+theme = noctalia
+
+font-family = JetBrainsMono Nerd Font
+font-size = 12
+
+# niri sets prefer-no-csd, so let the compositor draw the frame.
+window-decoration = none
+confirm-close-surface = false
