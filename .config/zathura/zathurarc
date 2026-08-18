@@ -1,0 +1,11 @@
+# Colours come from Noctalia's zathura template, which rewrites
+# ~/.config/zathura/noctaliarc on every wallpaper/palette change.
+# Relative includes resolve against this file's directory - zathurarc(5).
+include noctaliarc
+
+# Recolouring is what makes PDFs render dark. noctaliarc supplies the
+# recolor-lightcolor / recolor-darkcolor values but they only take effect
+# when recolor is on, so it is off by default here - it inverts document
+# colours, which can wreck figures and scanned pages.
+# Toggle it per-document with Ctrl+R, or uncomment to make it the default:
+# set recolor true
