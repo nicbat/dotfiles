@@ -108,6 +108,8 @@
 *.bak
 *.bak-*
 *.pre-*
+# Noctalia's template-apply.sh treats ~/.config/ghostty/config.ghostty as a
+# second config file it may rewrite (see its CONFIG_FILES array). Not authored.
 .config/ghostty/config.ghostty
 
 # ── vendored / reinstallable, not authored ───────────────────────────

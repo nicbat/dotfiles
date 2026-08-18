@@ -21,3 +21,8 @@ confirm-close-surface = false
 # open wherever the current one is (handy inside a project).
 working-directory = home
 window-inherit-working-directory = false
+
+# Noctalia's template-apply.sh does `pkill -SIGUSR2 ghostty` on every palette
+# change, which makes Ghostty toast "configuration reloaded" on every
+# light <-> dark switch. Keep the clipboard toast, drop the reload one.
+app-notifications = no-config-reload
