@@ -128,3 +128,4 @@
 .config/create-next-app-nodejs/*
 .config/nextjs-nodejs/*
 .config/spicetify/Themes/Sleek/README.md
+.config/Electron/*
