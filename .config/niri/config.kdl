@@ -350,8 +350,15 @@ layout {
 // spawn-sh-at-startup "qs -c ~/source/qs/MyAwesomeShell"
 
 hotkey-overlay {
-    // Uncomment this line to disable the "Important Hotkeys" pop-up at startup.
-    // skip-at-startup
+    // niri draws this overlay itself with pango/cairo and exposes no font or
+    // colour options, so the only things tunable are when it appears and what
+    // it lists. Mod+Shift+Slash still summons it on demand.
+    skip-at-startup
+
+    // By default niri also lists important actions that aren't bound to
+    // anything, "to prevent confusion". That padded the overlay with binds
+    // this config doesn't have. Show only what actually works.
+    hide-not-bound
 }
 
 // Uncomment this line to ask the clients to omit their client-side decorations if possible.
@@ -484,7 +491,11 @@ binds {
     Mod+Shift+Slash { show-hotkey-overlay; }
 
     // Suggested binds for running programs: terminal, app launcher, screen locker.
-    Mod+T hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty"; }
+    // --gtk-single-instance=true makes this hand the request to the already
+    // running ghostty (~0.1s) instead of cold-starting a new process (~0.6s+).
+    // The instance is kept warm by app-com.mitchellh.ghostty.service, but this
+    // still works if that service is down - it just starts the instance itself.
+    Mod+T hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty" "--gtk-single-instance=true"; }
     Super+Alt+L hotkey-overlay-title="Lock the Screen: Noctalia" { spawn-sh "qs -c noctalia-shell ipc call lockScreen lock"; }
 
     // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.
@@ -738,9 +749,13 @@ binds {
     // which ensures niri always processes them, even when an inhibitor is active.
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 
-    // The quit action will show a confirmation dialog to avoid accidental exits.
-    Mod+Shift+E { quit; }
-    Ctrl+Alt+Delete { quit; }
+    // niri's own exit confirmation is drawn by the compositor and can't be
+    // themed. Noctalia's session menu can - it follows the Material You
+    // palette like everything else - so Mod+Shift+E goes there instead.
+    Mod+Shift+E hotkey-overlay-title="Session Menu: Noctalia" { spawn-sh "qs -c noctalia-shell ipc call sessionMenu toggle"; }
+
+    // Fallback for when Noctalia is dead: niri's unstyled confirmation dialog.
+    Ctrl+Alt+Delete hotkey-overlay-title="Exit niri (fallback)" { quit; }
 
     // Powers off the monitors. To turn them back on, do any input like
     // moving the mouse or pressing any other key.
