@@ -8,3 +8,16 @@ font-size = 12
 # niri sets prefer-no-csd, so let the compositor draw the frame.
 window-decoration = none
 confirm-close-surface = false
+
+# Always open new terminals in $HOME.
+#
+# Ghostty is single-instance: Mod+T asks the running instance for a new
+# window rather than launching a new process. With the default
+# window-inherit-working-directory=true, that window inherits the FOCUSED
+# surface's directory - so once one terminal ended up in ~/.config/niri,
+# every new one inherited it, permanently.
+#
+# Set window-inherit-working-directory = true if you'd rather new windows
+# open wherever the current one is (handy inside a project).
+working-directory = home
+window-inherit-working-directory = false
