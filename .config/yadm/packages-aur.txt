@@ -1,5 +1,6 @@
 android-studio
 bibata-cursor-theme
+chatgpt-desktop
 cheat-bin
 claude-code
 claude-desktop-extra
@@ -9,10 +10,11 @@ fcitx5-mozc-ut
 google-chrome
 herdr-bin
 logiops
-noctalia-shell
 notion-app-electron
 notion-calendar-electron-fixed
+openai-codex-bin
 sddm-silent-theme
+spicetify-cli
 spotify
 swaylock-effects
 todoist-appimage

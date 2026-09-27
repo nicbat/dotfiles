@@ -131,3 +131,8 @@
 .config/nextjs-nodejs/*
 .config/spicetify/Themes/Sleek/README.md
 .config/Electron/*
+
+# Codex desktop app (Electron) - component downloads and caches.
+.config/Codex/*
+# tui-timer is built from ~/Projects/tui-timer; the binary is not config.
+.local/bin/tui-timer

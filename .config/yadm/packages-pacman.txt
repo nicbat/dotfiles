@@ -1,5 +1,7 @@
 acpi
 adw-gtk-theme
+android-tools
+android-udev
 anki
 awww
 base
@@ -43,8 +45,8 @@ linux-firmware
 luarocks
 ncdu
 neovim
-network-manager-applet
 networkmanager
+network-manager-applet
 niri
 noto-fonts-cjk
 noto-fonts-emoji
@@ -84,8 +86,8 @@ wdisplays
 webapp-manager
 wf-recorder
 wget
-wl-clip-persist
 wl-clipboard
+wl-clip-persist
 wlsunset
 xwayland-satellite
 yadm

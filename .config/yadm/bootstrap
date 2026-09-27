@@ -38,10 +38,40 @@ if [[ -f "$CFG/packages-aur.txt" ]]; then
   done < "$CFG/packages-aur.txt"
 fi
 
+# noctalia-qs and noctalia-shell are NOT in the AUR, so they are built from
+# PKGBUILDs kept in this repo. Order matters: the shell depends on qs.
+for pkg in noctalia-qs noctalia-shell; do
+  if ! pacman -Qq "$pkg" >/dev/null 2>&1; then
+    say "Building $pkg"
+    tmp=$(mktemp -d)
+    cp "$CFG/pkgbuilds/$pkg/PKGBUILD" "$tmp/"
+    (cd "$tmp" && makepkg -si --noconfirm) || warn "$pkg build failed"
+    rm -rf "$tmp"
+  fi
+done
+
 # ── 3. Services ──────────────────────────────────────────────────────
 say "Enabling services"
-sudo systemctl enable --now power-profiles-daemon thermald 2>/dev/null || warn "service enable failed"
+sudo systemctl enable --now power-profiles-daemon thermald bluetooth 2>/dev/null || warn "service enable failed"
 sudo systemctl enable sddm 2>/dev/null || warn "sddm enable failed"
+
+# ── 3a. System files outside $HOME ───────────────────────────────────
+# yadm only sees $HOME, so /etc config is kept under $CFG/system and put in
+# place here.
+say "Installing system config"
+
+# logid reads /etc/logid.cfg; point it at the tracked copy so edits in
+# ~/.config/logid apply with restart.sh.
+sudo ln -sfn "$HOME/.config/logid/logid.cfg" /etc/logid.cfg
+sudo systemctl enable --now logid 2>/dev/null || warn "logid enable failed"
+
+# SDDM: SilentSDDM theme + its on-screen keyboard.
+sudo install -Dm644 "$CFG/system/sddm.conf" /etc/sddm.conf
+
+# fcitx5 needs XMODIFIERS for XWayland apps. Append rather than overwrite, as
+# /etc/environment is shared with whatever else the system put there.
+grep -qx 'XMODIFIERS=@im=fcitx' /etc/environment 2>/dev/null \
+  || echo 'XMODIFIERS=@im=fcitx' | sudo tee -a /etc/environment >/dev/null
 
 # Keeps a headless ghostty instance warm from login, so the first Mod+T is an
 # IPC call (~0.1s) rather than a cold GTK/font/GL start (~0.6s+). The unit ships
@@ -78,22 +108,32 @@ cat <<'EOF'
 Bootstrap done. Remaining manual steps:
 
   1. Wallpapers are not in this repo (too large). Restore
-     ~/Pictures/Backgrounds, then pick one in Noctalia - that is
-     what generates the whole colour scheme.
+     ~/Pictures/Wallpapers (the folder Noctalia's settings.json
+     points at), then pick one in Noctalia - that is what
+     generates the whole colour scheme.
 
-  2. Drop an avatar at ~/.face for Noctalia's lock screen.
+  2. Copy over what must never be in a public repo: ~/.ssh
+     (chmod 600 the keys), then `gh auth login`. Drop an avatar
+     at ~/.face for Noctalia's lock screen.
 
   3. Log into niri. Noctalia starts from niri's config and will
      regenerate every themed config on first wallpaper set:
      GTK3/4, Qt (qt6ct), kitty, ghostty, btop, yazi, zathura,
      starship, zed, steam, vicinae, and the nvim base16 template.
 
-  4. Monitor layout in config.kdl is matched by make/model/serial,
-     so the two Lenovo P27h externals should re-detect on their own.
-     If not, run wdisplays and re-save the positions.
+  4. Monitors in config.kdl are matched by make/model/serial, so
+     the two Lenovo P27h externals re-detect on their own. The
+     laptop panel only has a block if it is papaya's; on any other
+     laptop niri auto-configures it - to tune it, add an output
+     block using the name from `niri msg outputs`.
 
-  5. This machine's firmware drops UEFI NVRAM boot entries. Verify
-     the fallback bootloader is installed before you trust it.
+  5. Not reproduced here: GPU drivers (nvidia-open/nvidia-prime and
+     papaya's RTD3 power-management files are per-machine), global
+     npm tools (defuddle, media-manager), and ~/.local/bin/tui-timer
+     (build from ~/Projects/tui-timer).
+
+     papaya only: its Dell firmware drops UEFI NVRAM boot entries,
+     so verify the fallback bootloader is installed there.
 
   6. Run `yadm-coverage` to see any config this repo does not yet
      track. yadm cannot tell you this itself - its work-tree is
