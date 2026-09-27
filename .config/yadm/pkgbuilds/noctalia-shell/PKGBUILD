@@ -1,0 +1,21 @@
+# noctalia-shell is not in the AUR, so bootstrap builds it from here.
+# It is pure QML: the package just drops the repo where `qs -c noctalia-shell`
+# looks for it. Build noctalia-qs first - it is the runtime.
+pkgname=noctalia-shell
+pkgver=4.7.7
+pkgrel=4
+pkgdesc="Noctalia desktop shell for Wayland, built on Quickshell"
+arch=('any')
+url="https://github.com/noctalia-dev/noctalia"
+license=('MIT')
+depends=(noctalia-qs imagemagick brightnessctl ffmpeg qt6-multimedia python wlr-randr)
+makedepends=(git)
+source=("$pkgname::git+$url.git#tag=v$pkgver")
+sha256sums=('SKIP')
+
+package() {
+  install -d "$pkgdir/etc/xdg/quickshell"
+  cp -a "$pkgname" "$pkgdir/etc/xdg/quickshell/noctalia-shell"
+  rm -rf "$pkgdir"/etc/xdg/quickshell/noctalia-shell/.git{,hub,ignore}
+  install -Dm644 "$pkgname/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

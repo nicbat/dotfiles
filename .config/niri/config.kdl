@@ -163,21 +163,26 @@ input {
 output "Lenovo Group Limited P27h-28 V909G8F7" {
     mode "2560x1440@59.951"
     scale 1
-    position x=0 y=0
+    position x=2096 y=0
 }
 
 output "Lenovo Group Limited LEN P27h-10 0x354B4B37" {
     mode "2560x1440@59.951"
     scale 1
-    position x=2560 y=0
+    position x=4656 y=0
 }
 
-// Logical size 1728x1080 at scale 2. y=1440 puts it directly below the top
-// row; x=588 is where it was dragged, roughly under the left monitor.
-output "eDP-1" {
+// Laptop panels are matched by make/model too, never "eDP-1": this config is
+// shared between papaya and durian, and both call their panel eDP-1. A panel
+// with no block here gets niri's automatic mode/scale/placement, so to tune
+// another laptop, add a block for its `niri msg outputs` name next to this one.
+
+// papaya (XPS 15 9510). Logical size 1728x1080 at scale 2. y=986 tucks it
+// partly under the top row; x=368 sits it just left of P27h-28.
+output "Samsung Display Corp. 0x414D Unknown" {
     mode "3456x2160@60.001"
     scale 2
-    position x=588 y=1440
+    position x=368 y=986
 }
 
 // Settings that influence how windows are positioned and sized.

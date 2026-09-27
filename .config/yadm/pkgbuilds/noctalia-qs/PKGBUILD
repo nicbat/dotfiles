@@ -1,0 +1,32 @@
+# noctalia-qs is not in the AUR, so bootstrap builds it from here.
+# Quickshell links Qt's private API: after any qt6-base bump, if `qs` dies with
+# "undefined symbol ... Qt_6_PRIVATE_API", bump pkgrel and `makepkg -si` again.
+pkgname=noctalia-qs
+pkgver=0.0.12
+pkgrel=3
+pkgdesc="Custom fork of Quickshell powering Noctalia Shell"
+arch=('x86_64')
+url="https://github.com/noctalia-dev/noctalia-qs"
+license=('LGPL-3.0-only' 'GPL-3.0-only')
+depends=(gcc-libs glibc hicolor-icon-theme jemalloc libdrm libglvnd libpipewire
+         libxcb mesa pam qt6-base qt6-declarative qt6-svg qt6-wayland wayland polkit)
+makedepends=(git cmake ninja qt6-shadertools spirv-tools wayland-protocols cli11)
+provides=(quickshell)
+conflicts=(quickshell)
+options=('!debug')
+source=("$pkgname::git+$url.git#tag=v$pkgver")
+sha256sums=('SKIP')
+
+build() {
+  cmake -GNinja -S "$pkgname" -B build \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DDISTRIBUTOR="yadm bootstrap" \
+    -DINSTALL_QML_PREFIX=lib/qt6/qml
+  ninja -C build
+}
+
+package() {
+  DESTDIR="$pkgdir" ninja -C build install
+  install -Dm644 "$pkgname/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

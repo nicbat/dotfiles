@@ -1,0 +1,58 @@
+[settings]
+stopwatch = false
+hundredths = true
+seconds = 1
+prep = 3
+size = 0
+theme = 0
+bell = false
+confetti = true
+pomodoro = false
+work_seconds = 1500
+rest_seconds = 300
+cycles = 4
+font = 0
+long_rest_seconds = 900
+long_rest_every = 0
+final_rest = true
+color_mode = 0
+
+[presets.hang]
+stopwatch = false
+hundredths = true
+seconds = 60
+prep = 5
+size = 0
+theme = 0
+bell = false
+confetti = false
+pomodoro = false
+work_seconds = 1500
+rest_seconds = 300
+cycles = 4
+font = 0
+long_rest_seconds = 900
+long_rest_every = 0
+final_rest = true
+color_mode = 0
+
+[drafts]
+
+[scratch]
+stopwatch = false
+hundredths = true
+seconds = 1
+prep = 3
+size = 0
+theme = 0
+bell = false
+confetti = true
+pomodoro = false
+work_seconds = 1500
+rest_seconds = 300
+cycles = 4
+font = 0
+long_rest_seconds = 900
+long_rest_every = 0
+final_rest = true
+color_mode = 0
