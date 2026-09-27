@@ -179,7 +179,8 @@
           "hidePassive": false,
           "id": "Tray",
           "pinned": [
-            "Claude_status_icon_1"
+            "Claude_status_icon_1",
+            "Notion"
           ]
         },
         {
@@ -453,7 +454,7 @@
     "firstDayOfWeek": -1,
     "hideWeatherCityName": false,
     "hideWeatherTimezone": false,
-    "name": "Seattle",
+    "name": "San Francisco",
     "showCalendarEvents": true,
     "showCalendarWeather": true,
     "showWeekNumberInCalendar": false,
@@ -700,7 +701,7 @@
     "favorites": [],
     "fillColor": "#000000",
     "fillMode": "crop",
-    "hideWallpaperFilenames": false,
+    "hideWallpaperFilenames": true,
     "linkLightAndDarkWallpapers": true,
     "monitorDirectories": [],
     "overviewBlur": 0.4,
@@ -726,12 +727,12 @@
     "useOriginalImages": false,
     "useSolidColor": false,
     "useWallhaven": true,
-    "viewMode": "single",
+    "viewMode": "browse",
     "wallhavenApiKey": "",
     "wallhavenCategories": "111",
     "wallhavenOrder": "desc",
     "wallhavenPurity": "100",
-    "wallhavenQuery": "mountain painting",
+    "wallhavenQuery": "minecraft",
     "wallhavenRatios": "",
     "wallhavenResolutionHeight": "",
     "wallhavenResolutionMode": "atleast",
