@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Save only Herdr customizations in the existing yadm dotfiles repository.
+set -euo pipefail
+cd "$HOME"
+
+paths=(
+  .bashrc
+  .config/herdr/config.toml
+  .config/herdr-app
+  .config/noctalia/themes.toml
+  .config/noctalia/templates/herdr-app.json
+  .local/share/noctalia/plugins/herdr
+  .codex/skills/herdr/SKILL.md
+  .local/bin/herdr-backup
+)
+
+if [[ ${1:-} == --dry-run ]]; then
+  yadm status --short --untracked-files=all -- "${paths[@]}"
+  exit
+fi
+if [[ $# -gt 1 || ${1:-} == --* ]]; then
+  printf 'Usage: herdr-backup [--dry-run | "commit message"]\n' >&2
+  exit 2
+fi
+if [[ $(yadm symbolic-ref --short HEAD) != main ]]; then
+  printf 'Herdr backup expects the dotfiles main branch; no files were staged.\n' >&2
+  exit 1
+fi
+
+yadm add -A -- "${paths[@]}"
+if ! yadm diff --cached --quiet -- "${paths[@]}"; then
+  # --only leaves any unrelated staged work out of this commit and staged.
+  yadm commit --only -m "${1:-herdr: back up customizations $(date +%F)}" -- "${paths[@]}"
+else
+  printf 'Herdr customizations are already committed.\n'
+fi
+# Also retry publishing a previous local backup if its push failed.
+yadm push origin main

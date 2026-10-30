@@ -88,5 +88,20 @@ alias du='dust'
 [ -f /usr/share/fzf/key-bindings.bash ] && source /usr/share/fzf/key-bindings.bash
 [ -f /usr/share/fzf/completion.bash ]   && source /usr/share/fzf/completion.bash
 
+# Keep each Herdr terminal's Codex commands attached to its own core address.
+codex() {
+  if [[ -n ${HC_TERMINAL_ID:-} ]]; then
+    local codex_arg
+    for codex_arg in "$@"; do
+      case "$codex_arg" in
+        --no-daemon|--remote|--remote=*|agents|app-server|remote-control) command codex "$@"; return ;;
+      esac
+    done
+    command codex --no-daemon "$@"
+  else
+    command codex "$@"
+  fi
+}
+
 # make sure this is at the very end of the file
 eval "$(starship init bash)"

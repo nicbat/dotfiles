@@ -1,0 +1,18 @@
+# Back up personal sources only. Herdr regenerates shipped UI and API files.
+/*
+!/.gitignore
+!/README.md
+!/keys.json
+!/settings.json
+!/programs.json
+!/layouts/
+/layouts/*
+!/layouts/nic-*.json
+!/mods/
+/mods/*
+!/mods/nic-*/
+/mods/nic-*/*.d.ts
+/mods/nic-*/jsconfig.json
+**/node_modules/
+**/*.error
+**/*~

@@ -1,0 +1,110 @@
+# App palettes render automatically on wallpaper, palette, and light/dark changes.
+[theme.templates]
+enable_builtin_templates = false
+enable_community_templates = false
+
+[theme.templates.user.ghostty]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/ghostty"
+output_path = "/home/nicbat/.config/ghostty/themes/noctalia"
+post_hook = "/home/nicbat/.config/noctalia/hooks/template-apply.sh ghostty"
+
+[theme.templates.user.kitty]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/kitty.conf"
+output_path = "/home/nicbat/.config/kitty/themes/noctalia.conf"
+post_hook = "/home/nicbat/.config/noctalia/hooks/template-apply.sh kitty"
+
+[theme.templates.user.starship]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/starship.toml"
+output_path = "/home/nicbat/.cache/noctalia/starship-palette.toml"
+post_hook = "/home/nicbat/.config/noctalia/hooks/template-apply.sh starship"
+
+[theme.templates.user.gtk_0]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/gtk_0.css"
+output_path = "/home/nicbat/.config/gtk-3.0/noctalia.css"
+index = 10
+
+[theme.templates.user.gtk_1]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/gtk_1.css"
+output_path = "/home/nicbat/.config/gtk-4.0/noctalia.css"
+post_hook = "python3 /home/nicbat/.config/noctalia/hooks/gtk-refresh.py {{ mode }}"
+index = 11
+hook_async = false
+
+[theme.templates.user.qt_0]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/qt_0.conf"
+output_path = "/home/nicbat/.config/qt5ct/colors/noctalia.conf"
+
+[theme.templates.user.qt_1]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/qt_1.conf"
+output_path = "/home/nicbat/.config/qt6ct/colors/noctalia.conf"
+
+[theme.templates.user.vicinae_0]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/vicinae_0.toml"
+output_path = "/home/nicbat/.local/share/vicinae/themes/noctalia.toml"
+post_hook = "cp --update=none /home/nicbat/.config/noctalia/templates/imported-v4/noctalia.svg ~/.local/share/vicinae/themes/noctalia.svg && /home/nicbat/.config/noctalia/hooks/template-apply.sh vicinae"
+
+[theme.templates.user.zed_0]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/zed_0.json"
+output_path = "/home/nicbat/.config/zed/themes/noctalia.json"
+
+[theme.templates.user.zenBrowser_0]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/zenBrowser_0.css"
+output_path = "/home/nicbat/.cache/noctalia/zen-browser/zen-userChrome.css"
+index = 20
+
+[theme.templates.user.zenBrowser_1]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/zenBrowser_1.css"
+output_path = "/home/nicbat/.cache/noctalia/zen-browser/zen-userContent.css"
+post_hook = "sh -c 'CSS_CHROME=\"$HOME/.cache/noctalia/zen-browser/zen-userChrome.css\"; CSS_CONTENT=\"$HOME/.cache/noctalia/zen-browser/zen-userContent.css\"; LINE_CHROME=\"@import \\\"$CSS_CHROME\\\";\"; LINE_CONTENT=\"@import \\\"$CSS_CONTENT\\\";\"; find \"$HOME/.config/zen\" \"$HOME/.zen\" -mindepth 2 -maxdepth 2 -type d -name chrome -print0 2>/dev/null | while IFS= read -r -d \"\" dir; do USER_CHROME=\"$dir/userChrome.css\"; USER_CONTENT=\"$dir/userContent.css\"; mkdir -p \"$dir\"; touch \"$USER_CHROME\" \"$USER_CONTENT\"; sed -i \"/zen-browser\\/zen-userChrome\\.css/d\" \"$USER_CHROME\"; sed -i \"/zen-browser\\/zen-userContent\\.css/d\" \"$USER_CONTENT\"; if ! grep -Fq \"$LINE_CHROME\" \"$USER_CHROME\"; then printf \"%s\\n\" \"$LINE_CHROME\" >> \"$USER_CHROME\"; fi; if ! grep -Fq \"$LINE_CONTENT\" \"$USER_CONTENT\"; then printf \"%s\\n\" \"$LINE_CONTENT\" >> \"$USER_CONTENT\"; fi; done'"
+index = 21
+hook_async = false
+
+[theme.templates.user.yazi_0]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/yazi_0.toml"
+output_path = "/home/nicbat/.config/yazi/flavors/noctalia.yazi/flavor.toml"
+post_hook = "/home/nicbat/.config/noctalia/hooks/template-apply.sh yazi"
+
+[theme.templates.user.btop_0]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/btop_0.theme"
+output_path = "/home/nicbat/.config/btop/themes/noctalia.theme"
+post_hook = "/home/nicbat/.config/noctalia/hooks/template-apply.sh btop"
+
+[theme.templates.user.zathura_0]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/zathura_0"
+output_path = "/home/nicbat/.config/zathura/noctaliarc"
+post_hook = "/home/nicbat/.config/noctalia/hooks/template-apply.sh zathura"
+
+[theme.templates.user.steam_0]
+input_path = "/home/nicbat/.config/noctalia/templates/imported-v4/steam_0.css"
+output_path = "/home/nicbat/.steam/steam/steamui/skins/Material-Theme/css/main/colors/matugen.css"
+
+[theme.templates.user.nvim-base16]
+input_path = "~/.config/nvim/lua/matugen-template.lua"
+output_path = "~/.config/nvim/lua/matugen.lua"
+post_hook = "pgrep -x nvim >/dev/null && pkill -SIGUSR1 nvim || true"
+
+[theme.templates.user.spicetify-sleek]
+input_path = "~/.config/noctalia/templates/spicetify-sleek.ini"
+output_path = "~/.config/spicetify/Themes/Sleek/color.ini"
+post_hook = "spicetify -q apply --no-restart"
+hook_async = false
+index = 30
+
+[theme.templates.user.signal-styler]
+input_path = "~/.config/noctalia/templates/signal.css"
+output_path = "~/.config/signal-styler/noctalia.css"
+post_hook = "/home/nicbat/.local/bin/signal-noctalia --apply-theme"
+hook_async = false
+index = 30
+
+[theme.templates.user.codex-noctalia]
+input_path = "/home/nicbat/.config/noctalia/templates/codex.tmTheme"
+output_path = "/home/nicbat/.codex/themes/noctalia.tmTheme"
+
+[theme.templates.user.obsidian-noctalia]
+input_path = "/home/nicbat/.config/noctalia/templates/obsidian.css"
+output_path = "/home/nicbat/Documents/A New Vault/.obsidian/snippets/noctalia.css"
+
+[theme.templates.user.herdr-app]
+input_path = "/home/nicbat/.config/noctalia/templates/herdr-app.json"
+output_path = "/home/nicbat/.config/herdr-app/themes/noctalia.json"

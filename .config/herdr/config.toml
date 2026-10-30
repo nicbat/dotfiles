@@ -36,12 +36,25 @@ rows = [
 [ui.toast]
 delivery = "system"
 
+[ui.sound]
+enabled = false
+
 [theme]
 name = "terminal"
 auto_switch = false
 
 [theme.custom]
-active_row_bg = "#313244"
+active_row_bg = "black"
+selection_bg = "black"
+surface0 = "black"
+# Also supplies contrasting text on accent-colored controls/tabs.
+panel_bg = "black"
+
+# Noctalia maps ANSI green to its primary accent; use it for the active tab.
+accent = "green"
+# Keep divider lines and secondary surfaces on the darker surface shade.
+surface_dim = "black"
+surface1 = "black"
 
 [keys]
 previous_agent = "prefix+up"
