@@ -48,6 +48,31 @@ attribute children to the wrong parent. Existing daemon-backed sessions need
 to be resumed without the daemon before their tool context changes; do not
 restart someone else's active session automatically.
 
+## Visible panes and tabs
+
+Creating a visible tab or split is supported by Herdr App. Read its manual,
+then inspect `herdr-app ls` for the intended space and pane IDs. For example:
+
+```sh
+herdr-app do pane.split --pane <existing-pane-id> --direction right
+herdr-app do tab.new --space <existing-space-id> --name "review" --folder /path/to/repo
+```
+
+Use the IDs in the command response and confirm the result with `ls`.
+These commands change the visible window; creating a pane does not authorize
+starting an agent. Do not add an `argv` or task unless that launch is authorized.
+There is no app equivalent implied by an old TUI command or its flags; check
+`herdr-app commands` rather than transferring syntax between runtimes.
+
+On this managed Mac, `codex`, `claude`, `pi` and model aliases may invoke
+`declawd`. Inspect their wrapper definitions without executing them for
+CLI discovery. Never invoke declawd or its wrappers in the calling agent's
+own tool process tree, including help/version commands. Follow the session's
+personal launch policy when starting one in a new destination. Any stricter
+caller-context, new-pane, readiness or focus requirements in that policy
+still apply; report a blocked launch instead of treating this skill as an
+exception. Use the requested shell alias/model rather than guessing it.
+
 ## Preserve the person's workspace
 
 Do not launch bare `herdr-app` for inspection: it opens or raises the window.

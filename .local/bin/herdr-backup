@@ -11,6 +11,9 @@ paths=(
   .config/noctalia/templates/herdr-app.json
   .local/share/noctalia/plugins/herdr
   .codex/skills/herdr/SKILL.md
+  .codex/hooks.json
+  .local/bin/herdr-native-status.py
+  .local/bin/test_herdr_native_status.py
   .local/bin/herdr-backup
 )
 

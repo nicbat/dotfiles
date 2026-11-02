@@ -8,6 +8,7 @@
 !/layouts/
 /layouts/*
 !/layouts/nic-*.json
+!/layouts/nic-combined.svg
 !/mods/
 /mods/*
 !/mods/nic-*/

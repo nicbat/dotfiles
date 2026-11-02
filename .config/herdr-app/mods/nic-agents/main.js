@@ -3,9 +3,12 @@
 
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { home } from "herdr";
+import { home, exec, hc, readTextFile } from "herdr";
+import * as fs from "fs/promises";
 import { agentLabel } from "./agent-title.js";
 import { tabGroups } from "./tab-groups.js";
+import { visibleAgents, legacyAttachment } from "./visible-agents.js";
+import { directCodex, codexSession, newBindings } from "./codex-status.js";
 import { agents, terminals, panes, focused, spaces, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout } from "herdr";
 
 function find(node, id) {
@@ -29,7 +32,7 @@ function toggleSidebar() {
   run("layout.resize", { id: "sidebar", px: narrow() ? (shared("sidebar.width") ?? 268) : window()?.platform === "macos" ? 76 : 44 });
 }
 
-const RANK = { blocked: 4, done: 3, working: 2, idle: 1 };
+const RANK = { blocked: 4, done: 3, working: 2, idle: 1, unknown: 0 };
 // A sub-agent without a pane isn't in agents(): its raw word, error counting as
 // blocked. It's never done: it reports to its parent, and the parent's done is the news.
 const kidStatus = (k, listed) => {
@@ -41,7 +44,7 @@ const SORTS = [
   { id: "grouped", label: "Grouped by space", icon: "layers" },
 ];
 const sortOf = () => SORTS.find((s) => s.id === shared("agents.sort")) ?? SORTS[0];
-const SECTION = { 4: "Needs you", 3: "Done", 2: "Working", 1: "Idle" };
+const SECTION = { 4: "Needs you", 3: "Done", 2: "Working", 1: "Idle", 0: "Status unavailable" };
 const SECTION_STATUS = { 4: "blocked", 3: "done", 2: "working" };
 
 function duration(ms) {
@@ -61,11 +64,78 @@ function icon(p, size, color) {
 export default class Agents extends View {
   init(_props, cx) {
     if (props()?.sortMenu) return;
+    this.legacy = {};
+    this.legacyBusy = false;
+    cx.timer.every(3000, cx => this.refreshLegacy(cx));
+    this.refreshLegacy(cx);
+    this.codex = {};
+    this.codexStarts = {};
+    this.codexBusy = false;
+    cx.timer.every(1500, cx => this.refreshCodex(cx));
+    this.refreshCodex(cx);
     this.folded = new Set();
     // Each agent's last state and when it changed (ms), kept across restarts.
     this.changed = JSON.parse(localStorage.getItem("changed") ?? "{}");
     this.pins = JSON.parse(localStorage.getItem("pins") ?? "[]");
     cx.timer.every(30000, (cx) => cx.notify());
+  }
+
+  refreshCodex(cx) {
+    if (this.codexBusy) return;
+    const all = terminals();
+    const now = Date.now();
+    for (const terminal of all.filter(directCodex)) {
+      if (this.codexStarts[terminal.address]?.pid !== terminal.foreground.pid)
+        this.codexStarts[terminal.address] = { pid: terminal.foreground.pid, seenAt: now };
+    }
+    const sessions = new Set(all.map(codexSession).filter(Boolean));
+    const unbound = all.some(t => directCodex(t) && !codexSession(t));
+    this.codexBusy = true;
+    cx.spawn(async cx => {
+      const folder = `${home()}/.local/state/herdr-native-status`;
+      const records = [];
+      try {
+        const names = unbound ? await fs.readdir(folder) : [...sessions].map(s => `${s}.json`);
+        await Promise.all(names.filter(n => /^[A-Za-z0-9_-]{1,128}\.json$/.test(n)).map(async name => {
+          try {
+            const record = JSON.parse(await readTextFile(`${folder}/${name}`));
+            if (record && record.session_id === name.slice(0, -5)) records.push(record);
+          } catch (_) { /* No record means unavailable. */ }
+        }));
+        for (const binding of newBindings(all, records, this.codexStarts, Date.now()))
+          await hc(["label", binding.terminal, `herdr.codex.session=${binding.session}`, `herdr.codex.pid=${binding.pid}`]);
+      } catch (_) { /* Missing observer directory is expected before the first event. */ }
+      finally {
+        this.codex = Object.fromEntries(records.map(record => [record.session_id, record]));
+        this.codexBusy = false;
+        cx.notify();
+      }
+    });
+  }
+
+  // Attachments still live in the TUI server; read its observed states directly.
+  // Failure or an expired snapshot returns to unknown, rather than retaining idle.
+  refreshLegacy(cx) {
+    if (this.legacyBusy) { cx.notify(); return; }
+    const sessions = [...new Set(terminals().map(legacyAttachment).filter(Boolean).map(a => a.session))];
+    for (const session of Object.keys(this.legacy)) if (!sessions.includes(session)) delete this.legacy[session];
+    if (!sessions.length) return;
+    this.legacyBusy = true;
+    cx.spawn(async cx => {
+      try {
+        await Promise.all(sessions.map(async session => {
+          try {
+            const reply = await exec("herdr", ["--session", session, "agent", "list"]);
+            const data = JSON.parse(reply.stdout);
+            if (reply.code !== 0 || !Array.isArray(data.result?.agents)) throw new Error("Agent list unavailable");
+            this.legacy[session] = { checkedAt: Date.now(), agents: data.result.agents };
+          } catch (_) { delete this.legacy[session]; }
+        }));
+      } finally {
+        this.legacyBusy = false;
+        cx.notify();
+      }
+    });
   }
 
   // Stamps agents whose state changed. Done and idle count as one: looking at a
@@ -192,6 +262,9 @@ export default class Agents extends View {
   // compact: a ! for blocked where a header already says "Needs you".
   status(t, a, compact = false) {
     const color = t[a.status] ?? t.dim;
+    if (a.status === "unknown") return div().flex_none().text_size(11).text_color(t.muted)
+      .tooltip("Status unavailable: no current native report or source-server status")
+      .child(compact ? "?" : "Status unavailable");
     if (a.status === "working") return svg("mods/workspace-chrome/spinner.svg").size(12).mx(1).flex_none().text_color(t.working).spin(900);
     if (a.status === "blocked" && compact) return div().size(14).flex_none().rounded(4).bg(t.blocked + "26").text_size(10.5).font_bold().text_color(t.blocked).flex().items_center().justify_center().child("!");
     if (a.status === "blocked") return div().flex_none().px(6).h(18).rounded(5).bg(t.blocked + "26").text_size(10.5).font_semibold().text_color(t.blocked).flex().items_center().child("Needs you");
@@ -205,9 +278,9 @@ export default class Agents extends View {
     if (props()?.sortMenu) return this.sortMenu(t);
     const collapsed = narrow();
     const sort = sortOf();
-    let list = agents();
-    this.listed = new Map(list.map((a) => [a.address, a.status]));
     const all = terminals();
+    let list = visibleAgents(agents(), spaces(), panes(), all, this.legacy, Date.now(), this.codex);
+    this.listed = new Map(list.map((a) => [a.address, a.status]));
     this.paneTerminals = new Set(panes().filter(p => p.terminal).map(p => p.terminal));
     const shown = focused()?.agent;
     const now = Date.now();
@@ -289,7 +362,7 @@ export default class Agents extends View {
             .when(a.focused, el => el.font_bold()).text_color(a.focused ? t.accent : t.muted).child(String(i + 1)))
           .child(h_flex().w(14).flex_none().items_center().justify_center().child(this.status(t, a, true)));
       }
-      const when = this.since(a);
+      const when = a.status === "unknown" ? 0 : this.since(a);
       const idle = a.status === "idle" && !a.focused;
       const isPinned = this.pins.includes(a.address);
       const pin = div()
@@ -354,7 +427,7 @@ export default class Agents extends View {
     // space are next to each other in agents(), so neighbours make a group.
     const groups = pinned.length ? [{ id: "pinned", label: "Pinned", status: null, members: pinned }] : [];
     for (const a of rest) {
-      const r = rankOf(a) || RANK.idle;
+      const r = rankOf(a) ?? RANK.idle;
       const id = byPriority ? `sec-${r}` : `sp-${a.space}`;
       if (groups.at(-1)?.id === id) groups.at(-1).members.push(a);
       else groups.push({ id, label: byPriority ? SECTION[r] : a.space_name || "", status: byPriority ? SECTION_STATUS[r] : null, members: [a] });
@@ -443,7 +516,7 @@ export default class Agents extends View {
         ),
       )
       .when(list.length === 0 && !collapsed, (el) =>
-        el.child(div().px(12).text_size(12).text_color(t.dim).child("No agent status yet. Agents show up here when they report their status. Older versions and agents inside tmux may not.")),
+        el.child(div().px(12).text_size(12).text_color(t.dim).child("No agents found in the open panes.")),
       )
       .child(v_flex().id("ag-list").flex_1().min_h(0).px(collapsed ? 0 : 8).overflow_y_scrollbar().mode("always").children(rows))
       .child(

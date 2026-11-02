@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250">
+  <rect width="400" height="250" rx="8" fill="#16191e"/>
+  <rect width="118" height="250" rx="8" fill="#20242b"/>
+  <g fill="#9ca7b7" font-family="sans-serif" font-size="9">
+    <text x="12" y="22">Workspaces</text>
+    <text x="12" y="51" fill="#d9e1eb">▾ Project</text>
+    <text x="26" y="73">Agent task</text><circle cx="102" cy="70" r="3" fill="#8cac81"/>
+    <text x="26" y="95">Shell</text>
+    <text x="26" y="117">▾ Review · 2 panes</text>
+    <text x="37" y="139">Code review</text><circle cx="102" cy="136" r="3" fill="#d4b078"/>
+    <text x="37" y="161">Notes</text>
+    <text x="12" y="192" fill="#d9e1eb">▸ Another project</text>
+  </g>
+  <rect x="125" y="9" width="83" height="19" rx="4" fill="#303843"/>
+  <rect x="125" y="36" width="266" height="193" rx="6" fill="#101318" stroke="#536987"/>
+  <g stroke="#586372" stroke-width="2" stroke-linecap="round">
+    <path d="M139 53h95m-95 11h143m-143 11h118m-118 11h159"/>
+  </g>
+  <rect x="126" y="236" width="73" height="3" rx="1" fill="#586372"/>
+</svg>
