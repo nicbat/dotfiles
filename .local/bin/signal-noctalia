@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+"""Refresh the user-owned Signal app and apply Noctalia without sudo."""
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+
+source = Path('/usr/lib/signal-desktop')
+base = Path.home() / '.local/share/signal-noctalia'
+css = Path.home() / '.config/signal-styler/noctalia.css'
+base.mkdir(parents=True, exist_ok=True)
+
+def signature():
+    rows = []
+    for p in sorted(source.rglob('*')):
+        st = p.stat()
+        rows.append((str(p.relative_to(source)), st.st_size, st.st_mtime_ns))
+    return hashlib.sha256(json.dumps(rows).encode()).hexdigest()[:20]
+
+def patch(app, theme):
+    # Isolate Signal Styler's fixed temporary filenames and stage the archive.
+    with tempfile.TemporaryDirectory(prefix='patch-', dir=base) as temp:
+        temp = Path(temp)
+        archive = temp / 'app.asar'
+        shutil.copyfile(app / 'resources/app.asar', archive)
+        (temp / 'app.asar.unpacked').symlink_to(app / 'resources/app.asar.unpacked')
+        (temp / 'theme.css').write_bytes(theme)
+        env = dict(os.environ, TMPDIR=str(temp))
+        subprocess.run(['/usr/bin/signal-styler', '-a', str(archive), str(temp / 'theme.css')], env=env, check=True, stdout=sys.stderr)
+        os.replace(archive, app / 'resources/app.asar')
+
+with (base / 'update.lock').open('w') as lock:
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    version = signature()
+    app = base / ('app-' + version)
+    theme = css.read_bytes()
+    digest = hashlib.sha256(theme).hexdigest()
+    if not app.exists():
+        with tempfile.TemporaryDirectory(prefix='build-', dir=base) as temp:
+            staged = Path(temp) / 'app'
+            shutil.copytree(source, staged, symlinks=True)
+            # Use the installed root-owned sandbox helper, preserving sandboxing.
+            (staged / 'chrome-sandbox').unlink()
+            (staged / 'chrome-sandbox').symlink_to(source / 'chrome-sandbox')
+            patch(staged, theme)
+            if signature() != version:
+                raise RuntimeError('Signal changed during copying; retry after its update completes.')
+            (staged / '.theme-sha256').write_text(digest)
+            staged.rename(app)
+    elif (app / '.theme-sha256').read_text() != digest:
+        patch(app, theme)
+        (app / '.theme-sha256').write_text(digest)
+    pending = base / 'current.next'
+    pending.unlink(missing_ok=True)
+    pending.symlink_to(app.name)
+    pending.replace(base / 'current')
+
+if sys.argv[1:] == ['--apply-theme']:
+    print('Signal Noctalia theme ready. Restart Signal to see changes.')
+    sys.exit(0)
+flags_file = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'signal-desktop-flags.conf'
+flags = shlex.split('\n'.join(line.split('#', 1)[0] for line in flags_file.read_text().splitlines())) if flags_file.exists() else []
+os.execv(str(app / 'signal-desktop'), [str(app / 'signal-desktop'), *flags, *sys.argv[1:]])

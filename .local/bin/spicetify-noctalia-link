@@ -11,7 +11,7 @@ non-standard keys still get every value they expect.
 Usage:  spicetify-noctalia-link <ThemeName> [SchemeName]
         spicetify-noctalia-link --list
 """
-import json, os, re, shutil, subprocess, sys
+import json, os, re, shutil, subprocess, sys, toml
 
 HOME = os.path.expanduser("~")
 THEMES = f"{HOME}/.config/spicetify/Themes"
@@ -82,26 +82,7 @@ def main():
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         print(__doc__); return 0
     if sys.argv[1] == "--sync":
-        # Re-render every registered user template using the live wallpaper
-        # colours, exactly as noctalia does internally. Use when noctalia
-        # hasn't picked up a newly added template yet.
-        proc = subprocess.run(["qs", "-c", "noctalia-shell", "ipc", "call",
-                               "wallpaper", "get", ""],
-                              capture_output=True, text=True)
-        wp = proc.stdout.strip()
-        if not os.path.isfile(wp):
-            print(f"error: could not resolve current wallpaper (got {wp!r})", file=sys.stderr)
-            return 1
-        settings = json.load(open(f"{HOME}/.config/noctalia/settings.json"))
-        cs = settings.get("colorSchemes", {})
-        mode = "dark" if cs.get("darkMode", True) else "light"
-        stype = cs.get("generationMethod", "tonal-spot")
-        script = ("/etc/xdg/quickshell/noctalia-shell/Scripts/python/src/"
-                  "theming/template-processor.py")
-        r = subprocess.run(["python3", script, wp, "--scheme-type", stype,
-                            "--config", USER_TPL, "--default-mode", mode])
-        print(f"  synced from {os.path.basename(wp)} ({stype}, {mode})")
-        return r.returncode
+        return subprocess.run(["noctalia", "msg", "templates-apply"]).returncode
 
     if sys.argv[1] == "--list":
         for d in sorted(os.listdir(THEMES)):
@@ -142,30 +123,28 @@ def main():
     if unmapped:
         print(f"  note: guessed a mapping for {len(unmapped)} unknown key(s): {', '.join(unmapped)}")
 
-    # 3. register it as a noctalia user template (replacing any prior spicetify one)
-    block = (
-        f'[templates.spicetify-{theme.lower()}]\n'
-        f'input_path = "~/.config/noctalia/templates/spicetify-{theme.lower()}.ini"\n'
-        f'output_path = "~/.config/spicetify/Themes/{theme}/color.ini"\n'
-        f"post_hook = 'spicetify -q apply --no-restart'\n"
-    )
-    existing = open(USER_TPL).read() if os.path.isfile(USER_TPL) else ""
-    existing = re.sub(r'(?ms)^\[templates\.spicetify-[^\]]*\].*?(?=^\[|\Z)', '', existing)
-    open(USER_TPL, "w").write(existing.rstrip("\n") + ("\n\n" if existing.strip() else "") + block)
-    print(f"  registered user template in {USER_TPL}")
+    # Register in the v5 config without recreating a legacy TOML section.
+    config_path = f"{HOME}/.config/noctalia/themes.toml"
+    config = toml.load(config_path)
+    entries = config.setdefault("theme", {}).setdefault("templates", {}).setdefault("user", {})
+    for name in list(entries):
+        if name.startswith("spicetify-"):
+            del entries[name]
+    entries[f"spicetify-{theme.lower()}"] = {
+        "input_path": tpl,
+        "output_path": f"{THEMES}/{theme}/color.ini",
+        "post_hook": "spicetify -q apply --no-restart",
+    }
+    with open(config_path, "w") as handle:
+        toml.dump(config, handle)
+    print(f"  registered v5 template in {config_path}")
 
     # 4. point spicetify at the theme + our scheme
     subprocess.run(["spicetify", "config", "current_theme", theme, "color_scheme", scheme],
                    check=False, capture_output=True)
     print(f"  spicetify config -> current_theme={theme} color_scheme={scheme}")
 
-    if theme == "Comfy":
-        print("\n  ! target is Comfy, which noctalia's BUILT-IN template also writes.")
-        print("    Disable the built-in 'spicetify' template in noctalia settings to avoid a clash.")
-    else:
-        print("\n  Next: disable the built-in 'spicetify' template in noctalia's settings")
-        print("  (it keeps rewriting Themes/Comfy/color.ini, harmless but redundant),")
-        print("  then re-apply your colour scheme in noctalia to regenerate colours.")
+    print("  Run spicetify-noctalia-link --sync to apply the current palette.")
     return 0
 
 sys.exit(main())

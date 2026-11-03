@@ -1,0 +1,392 @@
+[shell]
+telemetry_enabled = false
+font_family = "Sans Serif"
+time_format = "{:%H:%M}"
+clipboard_auto_paste = "off"
+avatar_path = "/home/nicbat/.face"
+button_borders = false
+input_borders = false
+popup_borders = false
+card_borders = false
+clipboard_enabled = true
+lang = ""
+setup_wizard_enabled = false
+
+[wallpaper]
+directory = "/home/nicbat/Pictures/Wallpapers"
+fill_mode = "crop"
+enabled = true
+fill_color = "#000000"
+edge_smoothness = 0.05
+transition_on_startup = true
+transition = [ "fade", "disc", "stripes", "wipe", "honeycomb",]
+
+[theme]
+mode = "dark"
+source = "wallpaper"
+wallpaper_scheme = "m3-tonal-spot"
+
+[dock]
+enabled = true
+position = "bottom"
+auto_hide = true
+reserve_space = false
+launcher_position = "none"
+background_opacity = 1.0
+inactive_opacity = 0.6
+active_monitor_only = true
+show_dots = false
+show_instance_count = false
+pinned = []
+magnification = false
+inactive_scale = 1.0
+
+[idle]
+pre_action_fade_seconds = 5
+
+[lockscreen]
+enabled = true
+lock_before_suspend = true
+blur_intensity = 0.5
+tint_intensity = 0.35
+monitors = []
+
+[weather]
+enabled = true
+unit = "fahrenheit"
+effects = true
+
+[location]
+auto_locate = true
+address = "Hayward"
+sunrise = "06:30"
+sunset = "18:30"
+
+[nightlight]
+enabled = true
+temperature_day = 6500
+temperature_night = 4000
+
+[accessibility]
+ui_scale = 1.0
+
+[notification]
+enable_daemon = true
+position = "top_right"
+layer = "overlay"
+background_opacity = 1.0
+border = false
+keep_dismissed_in_history = false
+
+[osd]
+position = "top_right"
+hide_delay_ms = 2000
+background_opacity = 1.0
+border = false
+
+[audio]
+enable_sounds = false
+enable_volume_sounds = false
+enable_notification_sounds = false
+enable_overdrive = false
+
+[brightness]
+enable_ddcutil = false
+sync_all_monitors = false
+
+[desktop_widgets]
+enabled = false
+
+[backdrop]
+enabled = true
+blur_intensity = 0.4
+tint_intensity = 0.6
+
+[control_center]
+show_shortcut_labels = false
+[[control_center.shortcuts]]
+type = "wifi"
+
+[[control_center.shortcuts]]
+type = "bluetooth"
+
+[[control_center.shortcuts]]
+type = "wallpaper"
+
+[[control_center.shortcuts]]
+type = "power_profile"
+
+[[control_center.shortcuts]]
+type = "caffeine"
+
+[[control_center.shortcuts]]
+type = "nightlight"
+
+[battery]
+warning_threshold = 20
+
+[hooks]
+started = [ "/home/nicbat/.config/noctalia/hooks/sync-appearance.sh",]
+theme_mode_changed = [ "/home/nicbat/.config/noctalia/hooks/sync-appearance.sh",]
+
+[shell.animation]
+enabled = true
+speed = 1.0
+
+[shell.shadow]
+direction = "down_right"
+
+[shell.panel]
+borders = false
+shadow = true
+wallpaper_show_names = false
+launcher_placement = "floating"
+launcher_position = "center"
+session_placement = "floating"
+control_center_placement = "attached"
+wallpaper_placement = "attached"
+open_near_click_control_center = true
+
+[shell.launcher]
+layout = "simple"
+categories = true
+compact = false
+app_grid = false
+sort_by_usage = true
+track_usage = true
+pinned = []
+auto_paste = "off"
+
+[shell.mpris]
+blacklist = []
+
+[shell.screen_corners]
+enabled = false
+
+[shell.session]
+grid = false
+show_shortcuts = true
+[[shell.session.actions]]
+action = "lock"
+shortcut = "1"
+countdown_seconds = 10
+enabled = true
+
+[[shell.session.actions]]
+action = "suspend"
+shortcut = "2"
+countdown_seconds = 10
+enabled = true
+
+[[shell.session.actions]]
+action = "command"
+shortcut = "3"
+countdown_seconds = 10
+enabled = true
+label = "Hibernate"
+glyph = "moon"
+command = "systemctl hibernate"
+
+[[shell.session.actions]]
+action = "reboot"
+shortcut = "4"
+countdown_seconds = 10
+enabled = true
+
+[[shell.session.actions]]
+action = "logout"
+shortcut = "5"
+countdown_seconds = 10
+enabled = true
+
+[[shell.session.actions]]
+action = "shutdown"
+shortcut = "6"
+countdown_seconds = 10
+enabled = true
+
+[[shell.session.actions]]
+action = "command"
+shortcut = "7"
+countdown_seconds = 10
+enabled = true
+label = "Reboot to UEFI"
+glyph = "device-desktop"
+command = "systemctl reboot --firmware-setup"
+
+[wallpaper.default]
+path = "/home/nicbat/Pictures/Wallpapers/wallhaven_2k2dyg.jpg"
+
+[wallpaper.automation]
+enabled = false
+interval_seconds = 300
+order = "random"
+
+[osd.kinds]
+volume = true
+volume_output = true
+volume_input = true
+brightness = true
+wifi = false
+bluetooth = false
+power_profile = false
+caffeine = false
+nightlight = false
+dnd = false
+lock_keys = false
+keyboard_layout = false
+media = false
+privacy = false
+keyboard_backlight = false
+
+[control_center.calendar]
+show_events_card = true
+show_week_numbers = false
+
+[bar.main]
+position = "top"
+background_opacity = 0.93
+margin_ends = 4
+margin_edge = 4
+padding = 2
+widget_spacing = 6
+capsule = true
+start = [ "launcher", "clock", "cpu", "cpu-temp", "memory", "active_window", "media",]
+center = [ "workspaces",]
+end = [ "theme_mode", "tray", "notifications", "battery", "volume", "brightness", "control-center",]
+auto_hide = false
+auto_hide_delay_ms = 500
+show_on_workspace_switch = true
+font_scale = 1.0
+show_tooltip = true
+
+[widget.clock]
+format = "{:%H:%M %a, %b %d}"
+tooltip_format = "{:%H:%M %a, %b %d}"
+
+[widget.cpu]
+type = "sysmon"
+stat = "cpu_usage"
+visualization = "none"
+font_family = "JetBrainsMono Nerd Font"
+show_value = true
+show_glyph = true
+
+[widget.memory]
+type = "sysmon"
+stat = "ram_pct"
+visualization = "none"
+font_family = "JetBrainsMono Nerd Font"
+show_value = true
+show_glyph = true
+
+[widget.active_window]
+display = "icon_only"
+max_length = 145
+title_scroll = "on_hover"
+show_empty_label = false
+
+[widget.workspaces]
+show_labels = false
+show_icons = true
+hide_when_empty = false
+max_label_chars = 2
+pill_scale = 0.6
+focused_color = "primary"
+occupied_color = "secondary"
+empty_color = "secondary"
+labels_only_when_occupied = true
+font_weight = 700
+
+[widget.launcher]
+glyph = "rocket"
+
+[widget.control-center]
+glyph = "binoculars"
+
+[widget.cpu-temp]
+type = "sysmon"
+stat = "cpu_temp"
+visualization = "none"
+font_family = "JetBrainsMono Nerd Font"
+show_value = true
+show_glyph = true
+
+[widget.media]
+max_length = 500
+artist_first = true
+title_scroll = "on_hover"
+hide_album_art = false
+hide_when_no_media = true
+hide_when_idle = false
+
+[widget.tray]
+pinned = [ "Claude_status_icon_1", "Notion",]
+drawer = true
+hide_passive = false
+hidden = []
+
+[widget.battery]
+display_mode = "glyph"
+show_label = false
+hide_when_plugged = false
+hide_when_full = false
+
+[widget.volume]
+show_label = false
+
+[widget.brightness]
+show_label = false
+
+[widget.notifications]
+hide_when_no_unread = false
+
+[system.monitor]
+cpu_usage_activity_threshold = 80
+cpu_usage_critical_threshold = 90
+cpu_temp_activity_threshold = 80
+cpu_temp_critical_threshold = 90
+gpu_temp_activity_threshold = 80
+gpu_temp_critical_threshold = 90
+ram_pct_activity_threshold = 80
+ram_pct_critical_threshold = 90
+swap_pct_activity_threshold = 80
+swap_pct_critical_threshold = 90
+disk_used_pct_activity_threshold = 80
+disk_used_pct_critical_threshold = 90
+disk_free_pct_activity_threshold = 20
+disk_free_pct_critical_threshold = 10
+
+[idle.behavior.lock]
+timeout = 300
+action = "lock"
+enabled = true
+
+[idle.behavior.screen-off]
+timeout = 360
+action = "screen_off"
+enabled = true
+
+[widget.volume.actions]
+middle = "exec pwvucontrol || pavucontrol"
+scroll_up = "volume-up 5%"
+scroll_down = "volume-down 5%"
+
+[widget.brightness.actions]
+scroll_up = "brightness-up 5%"
+scroll_down = "brightness-down 5%"
+
+[shell.launcher.providers.session]
+global = true
+
+[shell.launcher.providers.windows]
+global = true
+
+[shell.launcher.providers.panels]
+global = true
+
+[bar.main.dead_zone.actions]
+right = "panel-toggle control-center"
+middle = "none"
+scroll_up = "none"
+scroll_down = "none"

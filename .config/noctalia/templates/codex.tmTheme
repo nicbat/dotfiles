@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>name</key>
+	<string>Noctalia</string>
+	<key>settings</key>
+	<array>
+		<dict>
+			<key>settings</key>
+			<dict>
+				<key>background</key>
+				<string>{{colors.surface.default.hex}}</string>
+				<key>caret</key>
+				<string>{{colors.primary.default.hex}}</string>
+				<key>foreground</key>
+				<string>{{colors.on_surface.default.hex}}</string>
+				<key>lineHighlight</key>
+				<string>{{colors.surface_container.default.hex}}</string>
+				<key>selection</key>
+				<string>{{colors.outline_variant.default.hex}}</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>scope</key>
+			<string>comment</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>{{colors.on_surface_variant.default.hex}}</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>scope</key>
+			<string>string</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>{{colors.primary.default.hex}}</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>scope</key>
+			<string>constant.numeric, constant.language</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>{{colors.tertiary.default.hex}}</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>scope</key>
+			<string>keyword, storage</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>{{colors.primary.default.hex}}</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>scope</key>
+			<string>entity.name.function, support.function</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>{{colors.tertiary.default.hex}}</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>scope</key>
+			<string>entity.name.type, entity.name.class, support.type</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>{{colors.secondary.default.hex}}</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>scope</key>
+			<string>variable, punctuation</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>{{colors.on_surface.default.hex}}</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>scope</key>
+			<string>markup.heading</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>{{colors.primary.default.hex}}</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>scope</key>
+			<string>markup.inserted</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>{{colors.primary.default.hex}}</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>scope</key>
+			<string>markup.deleted, invalid</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>{{colors.error.default.hex}}</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>scope</key>
+			<string>markup.changed</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>{{colors.tertiary.default.hex}}</string>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>

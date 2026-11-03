@@ -454,7 +454,7 @@
     "firstDayOfWeek": -1,
     "hideWeatherCityName": false,
     "hideWeatherTimezone": false,
-    "name": "San Francisco",
+    "name": "Hayward",
     "showCalendarEvents": true,
     "showCalendarWeather": true,
     "showWeekNumberInCalendar": false,
@@ -467,7 +467,7 @@
   "network": {
     "bluetoothAutoConnect": true,
     "bluetoothDetailsViewMode": "list",
-    "bluetoothHideUnnamedDevices": false,
+    "bluetoothHideUnnamedDevices": true,
     "bluetoothRssiPollIntervalMs": 60000,
     "bluetoothRssiPollingEnabled": false,
     "disableDiscoverability": false,
