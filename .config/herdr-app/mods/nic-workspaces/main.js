@@ -7,6 +7,7 @@ import * as fs from "fs/promises";
 import { directCodex, codexSession, newBindings } from "./codex-status.js";
 import { workspaceTree, agentOrder } from "./workspace-tree.js";
 import { readAttention } from "./read-attention.js";
+import { draftTargets, applyDrafts } from "./draft-status.js";
 
 const art = name => `mods/workspace-chrome/${name}.svg`;
 const perform = actions => actions.forEach(([command, args]) => run(command, args));
@@ -39,6 +40,10 @@ export default class Workspaces extends View {
     this.codexBusy = false;
     cx.timer.every(1500, cx => this.refreshCodex(cx));
     this.refreshCodex(cx);
+    this.drafts = {};
+    this.draftsBusy = false;
+    cx.timer.every(3000, cx => this.refreshDrafts(cx));
+    this.refreshDrafts(cx);
     cx.spawn(async cx => {
       for (;;) {
         const command = await nextCommand();
@@ -52,6 +57,10 @@ export default class Workspaces extends View {
         } else if (command === "fold-all") {
           this.folded = new Set(spaces().map(s => s.id));
           this.save();
+        } else if (command === "move-to-tab") {
+          const at = focused();
+          if (at?.pane && at?.terminal) openOverlay({ mod: "nic-menu", kind: "dialog", width: 620, height: 480,
+            props: { tab: "pane", target: { pane: at.pane, terminal: at.terminal }, movePicker: true } });
         }
         cx.notify();
       }
@@ -62,6 +71,31 @@ export default class Workspaces extends View {
     localStorage.setItem("folded-spaces", JSON.stringify([...this.folded]));
     localStorage.setItem("expanded-tabs", JSON.stringify([...this.expanded]));
     localStorage.setItem("expanded-workers", JSON.stringify([...this.workers]));
+  }
+
+  refreshDrafts(cx) {
+    if (this.draftsBusy) return;
+    const all = terminals();
+    const list = visibleAgents(agents(), spaces(), panes(), all, this.legacy, Date.now(), this.codex);
+    const targets = draftTargets(list, all);
+    if (!targets.length) { this.drafts = {}; return; }
+    this.draftsBusy = true;
+    cx.spawn(async cx => {
+      try {
+        const reply = await exec("python3", [`${home()}/.local/bin/herdr-draft-status.py`, JSON.stringify(targets)]);
+        const data = JSON.parse(reply.stdout);
+        if (reply.code !== 0 || !Array.isArray(data)) throw new Error("Draft observer unavailable");
+        this.drafts = Object.fromEntries(data.map(o => [o.address, o]));
+      } catch (_) { this.drafts = {}; }
+      finally { this.draftsBusy = false; cx.notify(); }
+    });
+  }
+
+  draftBadge(count, t, compact = false) {
+    return div().flex_none().px(compact ? 3 : 5).h(17).rounded(4).text_size(10)
+      .text_color(t.ansi3).bg(t.ansi3 + "18")
+      .tooltip("Draft prompt — unsubmitted input; the agent's activity is shown separately")
+      .child(compact ? "✎" : count > 1 ? `${count} drafts` : "Draft");
   }
 
   toggle(set, id, cx) {
@@ -149,7 +183,7 @@ export default class Workspaces extends View {
   }
 
   menu(tab, target) {
-    openOverlay({ mod: "menu", kind: "popup", width: 220, height: 320, props: { tab, target } });
+    openOverlay({ mod: "nic-menu", kind: "popup", width: 280, height: 330, props: { tab, target } });
   }
 
   workerRows(nodes, t, depth = 0) {
@@ -174,6 +208,7 @@ export default class Workspaces extends View {
       .child(icon(pane.program, pane.mod ? "file-text" : "terminal", t))
       .child(div().flex_1().min_w(0).truncate().text_size(12)
         .text_color(pane.focused ? t.accent : t.muted).tooltip(pane.title).child(pane.title))
+      .when(pane.draft, el => el.child(this.draftBadge(1, t)))
       .when(hasIndicator(pane.status), el => el.child(this.status(pane.status, t))), ...(open ? this.workerRows(pane.children, t) : [])];
   }
 
@@ -196,6 +231,7 @@ export default class Workspaces extends View {
         .tooltip(tab.title + (tab.settled ? " · Settled" : "")).child(tab.title))
       .when(split, el => el.child(div().flex_none().text_color(t.dim).text_size(10.5)
         .tooltip(`${tab.leaves.length} panes · ${tab.agentCount} agents`).child(String(tab.leaves.length))))
+      .when(tab.draftCount > 0 && (!split || !open), el => el.child(this.draftBadge(tab.draftCount, t)))
       .when(hasIndicator(tab.status), el => el.child(this.status(tab.status, t)));
     if (!open) return [row];
     if (!split) return [row, ...this.workerRows(tab.single.children, t)];
@@ -222,6 +258,7 @@ export default class Workspaces extends View {
       .when(!narrow, el => el.child(div().flex_1().min_w(0).truncate().text_size(12).font_semibold()
         .text_color(t.foreground).child(space.name))
         .child(div().flex_none().text_size(10).text_color(t.dim).tooltip(detail).child(String(space.agentCount))))
+      .when(space.draftCount > 0 && (folded || narrow), el => el.child(this.draftBadge(space.draftCount, t, narrow)))
       .when(hasIndicator(space.status), el => el.child(this.status(space.status, t)));
     return [row, ...(!folded && !narrow ? space.tabs.flatMap(tab => this.tabRows(space, tab, t)) : [])];
   }
@@ -234,7 +271,7 @@ export default class Workspaces extends View {
     const local = visibleAgents(agents().filter(a => !a.address.includes("/")), sp, localPanes, ts, this.legacy, Date.now(), this.codex);
     const remote = visibleAgents(agents().filter(a => a.address.includes("/")), sp,
       ps.filter(p => p.terminal?.includes("/")), ts);
-    const attention = readAttention(workspaceTree(sp, ps, ts, [...local, ...remote], home()),
+    const attention = readAttention(workspaceTree(sp, ps, ts, applyDrafts([...local, ...remote], ts, this.drafts), home()),
       this.readSeen ?? {}, focused(), window()?.active === true);
     this.readSeen = attention.seen;
     if (attention.changed) localStorage.setItem("read-completions", JSON.stringify(this.readSeen));

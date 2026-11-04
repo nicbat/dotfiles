@@ -14,6 +14,10 @@ paths=(
   .codex/hooks.json
   .local/bin/herdr-native-status.py
   .local/bin/test_herdr_native_status.py
+  .local/bin/herdr-draft-status.py
+  .local/bin/test_herdr_draft_status.py
+  .local/bin/herdr-move-terminal.py
+  .local/bin/test_herdr_move_terminal.py
   .local/bin/herdr-backup
 )
 

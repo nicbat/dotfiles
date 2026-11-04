@@ -44,6 +44,7 @@ export function workspaceTree(spaces, panes, terminals, agents, home = "") {
         const title = agent ? agentLabel(agent, tab, panes, home) :
           p.title || program?.name || p.mod || "Pane";
         return { ...p, id: p.pane, title, program, agent: Boolean(agent),
+          draft: agent?.draft === true,
           completion_key: agent?.completion_key, seq: agent?.seq,
           status: agent?.status ?? null, children,
           actions: activation(space.id, tab.id, p.pane) };
@@ -53,10 +54,12 @@ export function workspaceTree(spaces, panes, terminals, agents, home = "") {
       return { ...tab, leaves, single,
         title: tab.name && !/^\d+$/.test(tab.name) ? tab.name : single?.title || `Tab ${tab.index ?? tab.name}`,
         agentCount: nodes.filter(n => n.agent).length,
+        draftCount: nodes.filter(n => n.agent && n.draft).length,
         status: urgent([tab.status, ...nodes.map(n => n.status)]),
         actions: activation(space.id, tab.id, single?.pane) };
     });
     return { ...space, tabs, agentCount: tabs.reduce((n, t) => n + t.agentCount, 0),
+      draftCount: tabs.reduce((n, t) => n + t.draftCount, 0),
       paneCount: tabs.reduce((n, t) => n + t.leaves.length, 0),
       status: urgent([space.status, ...tabs.map(t => t.status)]) };
   });

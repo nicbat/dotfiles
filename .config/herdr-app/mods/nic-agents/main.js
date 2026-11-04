@@ -9,6 +9,7 @@ import { agentLabel } from "./agent-title.js";
 import { tabGroups } from "./tab-groups.js";
 import { visibleAgents, legacyAttachment } from "./visible-agents.js";
 import { directCodex, codexSession, newBindings } from "./codex-status.js";
+import { draftTargets, applyDrafts } from "./draft-status.js";
 import { agents, terminals, panes, focused, spaces, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout } from "herdr";
 
 function find(node, id) {
@@ -73,6 +74,10 @@ export default class Agents extends View {
     this.codexBusy = false;
     cx.timer.every(1500, cx => this.refreshCodex(cx));
     this.refreshCodex(cx);
+    this.drafts = {};
+    this.draftsBusy = false;
+    cx.timer.every(3000, cx => this.refreshDrafts(cx));
+    this.refreshDrafts(cx);
     this.folded = new Set();
     // Each agent's last state and when it changed (ms), kept across restarts.
     this.changed = JSON.parse(localStorage.getItem("changed") ?? "{}");
@@ -110,6 +115,24 @@ export default class Agents extends View {
         this.codexBusy = false;
         cx.notify();
       }
+    });
+  }
+
+  refreshDrafts(cx) {
+    if (this.draftsBusy) return;
+    const all = terminals();
+    const list = visibleAgents(agents(), spaces(), panes(), all, this.legacy, Date.now(), this.codex);
+    const targets = draftTargets(list, all);
+    if (!targets.length) { this.drafts = {}; return; }
+    this.draftsBusy = true;
+    cx.spawn(async cx => {
+      try {
+        const reply = await exec("python3", [`${home()}/.local/bin/herdr-draft-status.py`, JSON.stringify(targets)]);
+        const data = JSON.parse(reply.stdout);
+        if (reply.code !== 0 || !Array.isArray(data)) throw new Error("Draft observer unavailable");
+        this.drafts = Object.fromEntries(data.map(o => [o.address, o]));
+      } catch (_) { this.drafts = {}; }
+      finally { this.draftsBusy = false; cx.notify(); }
     });
   }
 
@@ -279,7 +302,7 @@ export default class Agents extends View {
     const collapsed = narrow();
     const sort = sortOf();
     const all = terminals();
-    let list = visibleAgents(agents(), spaces(), panes(), all, this.legacy, Date.now(), this.codex);
+    let list = applyDrafts(visibleAgents(agents(), spaces(), panes(), all, this.legacy, Date.now(), this.codex), all, this.drafts);
     this.listed = new Map(list.map((a) => [a.address, a.status]));
     this.paneTerminals = new Set(panes().filter(p => p.terminal).map(p => p.terminal));
     const shown = focused()?.agent;
@@ -358,6 +381,8 @@ export default class Agents extends View {
           .when(a.focused, el => el.bg(t.accent + "1f"))
           .hover((s) => s.bg(a.focused ? t.accent + "2b" : t.hover))
           .on_click(() => run("pane.focus", { pane: a.pane }))
+          .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", width: 280, height: 330,
+            props: { tab: "pane", target: { pane: a.pane, terminal: a.address } } }))
           .child(div().flex_1().min_w(0).whitespace_nowrap().text_right()
             .when(a.focused, el => el.font_bold()).text_color(a.focused ? t.accent : t.muted).child(String(i + 1)))
           .child(h_flex().w(14).flex_none().items_center().justify_center().child(this.status(t, a, true)));
@@ -404,6 +429,8 @@ export default class Agents extends View {
           cx.notify();
         })
         .on_click(() => run("pane.focus", { pane: a.pane }))
+        .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", width: 280, height: 330,
+          props: { tab: "pane", target: { pane: a.pane, terminal: a.address } } }))
         .when(Boolean(pic), el => el.child(div().id(`agent-fold-${a.address}`)
           .when(subs.length > 0, el => el.on_click((_e, cx) => {
             cx.stop_propagation();
@@ -420,6 +447,8 @@ export default class Agents extends View {
         .when(subs.length > 0, el => el.child(fold(a, subs)))
         .when(this.hovered === a.address, el => el.child(pin))
         .when(this.hovered !== a.address && Boolean(when), el => el.child(div().flex_none().text_size(11).text_color(t.dim).child(duration(now - when))))
+        .when(a.draft, el => el.child(div().flex_none().px(5).h(17).rounded(4).text_size(10)
+          .text_color(t.ansi3).bg(t.ansi3 + "18").tooltip("Draft prompt — unsubmitted input").child("Draft")))
         .child(this.status(t, a, byPriority && !isPinned));
     };
 

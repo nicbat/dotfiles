@@ -52,6 +52,10 @@ The ignore rules exclude live terminals, sessions, mod storage, focus and
 window state, generated palettes/types, backups, and Herdr's shipped UI.
 New personal mods/layouts named `nic-*` are included by the backup command.
 
+`mods/nic-menu` is a personal clone of the shipped menu. Both personal layouts
+use it for terminal right-clicks; the combined sidebar, agent rows and personal
+tab bar also open it. Restore the new Python helpers below alongside the mods.
+
 ## Restore
 
 Install Herdr App and herdr-core, then restore the dotfiles with yadm. Launch
@@ -123,3 +127,54 @@ Needs you, and `?` remains Status unavailable. This applies to the combined
 sidebar; `nic-main` retains its existing behavior. All personal status readers
 include the Codex hook reader. The footer counts the raw working status,
 independent of the sidebar's completion/read presentation.
+
+## Move to tab
+
+Right-click an agent's compact single-pane tab row, a pane inside an expanded
+split tab, or its terminal body, then choose **Move to tab…**. Choose a destination
+tab and **Move right** or **Move below**. In `nic-main`, right-click the agent row.
+The original menu actions remain available. If a program owns right-clicks,
+Shift+right-click still opens Herdr's menu.
+
+The picker includes other tabs with live terminal panes on this computer, in
+their existing workspace/tab order. It excludes the source tab, remote tabs
+and document-only tabs. A split tab's top-level menu does not guess which pane
+to move; use that pane's row or terminal. The terminal keeps its working
+directory, process, conversation and task ownership.
+
+`.local/bin/herdr-move-terminal.py` serializes menu moves, uses supported
+park/focus/keep commands, waits for pending core changes and verifies that the
+same program landed once in the chosen tab with core keep restored. A confirmed
+parked terminal is kept in its own tab if the destination disappears or rejects
+placement. An uncertain pending placement is not replayed; an error is shown.
+The source tab disappears when its last pane is moved.
+
+`herdr-app do nic-workspaces.move-to-tab` opens the same picker for the focused
+pane in the combined layout. No automatic move or new agent launch occurs.
+
+## Draft prompts
+
+Both personal sidebars show an amber **Draft** badge when a recognized visible
+Claude, Codex or stock Pi composer contains unsubmitted text. Drafts coexist
+with native, attachment and hook status; they do not replace Working, Done or
+Needs you, affect working/total counts, or acknowledge completions. Folded
+spaces and collapsed split tabs retain aggregate draft hints.
+
+`.local/bin/herdr-draft-status.py` reads only current styled screens using
+`hc attach --observe --history 0`. It never types, resizes, scrolls through
+history or changes agent status. It returns boolean observations bound to the
+terminal/foreground identity, without saving or returning prompt text.
+Sidebars refresh every three seconds and discard failed, replaced or expired
+observations. Dim placeholders and recognized dialogs/history are excluded.
+ANSI charset resets are control sequences, not composer text.
+
+The detector is a bounded UI adapter. Alternate/custom editors or hidden
+composer boundaries remain unrecognized; missing observations do not establish
+an empty draft. Current live positive validation covers Claude; Codex empty
+views and synthetic Codex/Pi drafts are tested. Keep the `draft-status.js`
+copies in `nic-agents` and `nic-workspaces` synchronized.
+
+Tests: Node suites beside the affected mods, and Python
+`test_herdr_draft_status.py`, `test_herdr_move_terminal.py`, plus the existing
+native-status observer tests under `.local/bin`. These helpers are included
+in the on-demand backup's path list; no new service or hook is installed.

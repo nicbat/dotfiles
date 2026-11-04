@@ -1,5 +1,6 @@
 {
   "id": "root",
+  "terminal_menu": "nic-menu",
   "preview": "layouts/nic-combined.svg",
   "cloned_from": {
     "name": "main",
