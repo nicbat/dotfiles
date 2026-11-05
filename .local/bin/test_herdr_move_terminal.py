@@ -1,5 +1,6 @@
 import copy
 import importlib.util
+import json
 from pathlib import Path
 import unittest
 
@@ -14,27 +15,36 @@ class App:
         self.placed = "source"; self.focus = "p-source"; self.commands = []; self.pending = 0
         self.remove_destination = False; self.fail_keep = False; self.change_focus = False
         self.hold_keep = False
+        self.extra_source = False
+        self.names = {name: name for name in ("source", "target", "recovered")}
 
     def snapshot(self):
         tabs = []
         for name in ("source", "target", "recovered"):
             if name == "target" and self.remove_destination and self.placed is None: continue
             leaves = [{"terminal": "dest", "pane": "p-target"}] if name == "target" else []
+            if name == "source" and self.extra_source: leaves.append({"terminal": "remain", "pane": "p-remain"})
             if self.placed == name: leaves.append({"terminal": "t", "pane": "p-source" if name == "source" else "p-moved"})
-            if leaves: tabs.append({"id": name, "name": name, "terminals": leaves})
+            if leaves: tabs.append({"id": name, "name": self.names[name], "terminals": leaves})
         return {"spaces": [{"id": "s", "machine": None, "tabs": tabs}]}
 
     def call(self, program, *args):
-        if program == "hc": return copy.deepcopy(self.t)
+        if program == "hc":
+            if args[0] == "label":
+                key, value = args[2].split("=", 1)
+                self.t.setdefault("labels", {})[key] = value
+            return copy.deepcopy(self.t)
         if args == ("ls",):
             if self.pending:
                 self.pending -= 1
                 if not self.pending: self.placed = None; self.t["keep"] = False
             return self.snapshot()
-        if args == ("status",): return {"focused_pane": self.focus}
+        if args == ("status",): return {"focused_pane": self.focus, "space": "s"}
         command = args[1]; self.commands.append(command)
         if command == "terminal.park": self.pending = 2
         elif command == "pane.focus": self.focus = "p-target"
+        elif command == "space.select": pass
+        elif command == "tab.rename": self.names[args[3]] = args[5]
         elif command == "terminal.keep":
             if self.fail_keep and args[-1] != "tab": raise RuntimeError("Destination unavailable")
             if self.hold_keep: return {"pending": True}
@@ -49,7 +59,7 @@ class MoveTests(unittest.TestCase):
         app = App(); original = copy.deepcopy(app.t)
         result = module.move("t", "p-target", "right", app.call, lambda _: None)
         self.assertTrue(result["ok"]); self.assertEqual(result["tab"], "target")
-        self.assertEqual(app.t, original)
+        self.assertEqual({k:v for k,v in app.t.items() if k != "labels"}, original)
         self.assertEqual(app.commands, ["terminal.park", "pane.focus", "terminal.keep"])
 
     def test_disappearing_target_or_failed_keep_recovers_own_tab(self):
@@ -77,6 +87,68 @@ class MoveTests(unittest.TestCase):
         self.assertFalse(result["ok"]); self.assertFalse(result["recovered"])
         self.assertEqual(app.commands.count("terminal.keep"), 1)
         self.assertEqual(app.t["state"], "live")
+
+    def test_drag_targets_and_program_identity_are_checked_before_parking(self):
+        expected = {"source_pane": "p-source", "source_tab": "source", "target_tab": "target",
+                    "pid": 1, "created_ms": 2, "foreground_pid": 3}
+        for key in expected:
+            app = App(); stale = {**expected, key: "changed"}
+            with self.assertRaisesRegex(RuntimeError, "changed after the drag"):
+                module.move("t", "p-target", "right", app.call, lambda _: None, expected=stale)
+            self.assertEqual(app.commands, [])
+        app = App()
+        result = module.move("t", "p-target", "right", app.call, lambda _: None, expected=expected)
+        self.assertTrue(result["ok"])
+
+    def test_own_tab_move_preserves_process_and_rejects_an_already_single_pane(self):
+        app = App()
+        with self.assertRaisesRegex(RuntimeError, "already has its own tab"):
+            module.move("t", None, "tab", app.call, lambda _: None)
+        self.assertEqual(app.commands, [])
+        app.extra_source = True; original = copy.deepcopy(app.t)
+        result = module.move("t", None, "tab", app.call, lambda _: None)
+        self.assertTrue(result["ok"]); self.assertEqual({k:v for k,v in app.t.items() if k != "labels"}, original)
+        self.assertEqual(app.commands, ["terminal.park", "space.select", "terminal.keep", "tab.rename"])
+        self.assertEqual(app.names["recovered"], "source")
+
+    def test_merge_remembers_the_panes_title_and_own_tab_restores_it_through_repeated_cycles(self):
+        app = App(); app.names["source"] = "Investigate login · 测试"
+        app.names["target"] = "Review deployment"
+        merged = module.move("t", "p-target", "right", app.call, lambda _: None)
+        self.assertTrue(merged["ok"])
+        self.assertEqual(app.names["target"], "Review deployment")
+        stored = json.loads(app.t["labels"][module.TITLE_LABEL])
+        self.assertEqual(stored["name"], "Investigate login · 测试")
+        own = module.move("t", None, "tab", app.call, lambda _: None)
+        self.assertTrue(own["ok"]); self.assertEqual(app.names["recovered"], stored["name"])
+        for _ in range(2):
+            self.assertTrue(module.move("t", "p-target", "down", app.call, lambda _: None)["ok"])
+            self.assertTrue(module.move("t", None, "tab", app.call, lambda _: None)["ok"])
+            self.assertEqual(app.names["recovered"], stored["name"])
+
+    def test_a_manual_name_change_in_an_own_tab_replaces_the_remembered_name(self):
+        app = App(); app.names["source"] = "Old title"
+        self.assertTrue(module.move("t", "p-target", "right", app.call, lambda _: None)["ok"])
+        self.assertTrue(module.move("t", None, "tab", app.call, lambda _: None)["ok"])
+        app.names["recovered"] = "My new title"
+        self.assertTrue(module.move("t", "p-target", "right", app.call, lambda _: None)["ok"])
+        self.assertTrue(module.move("t", None, "tab", app.call, lambda _: None)["ok"])
+        self.assertEqual(app.names["recovered"], "My new title")
+
+    def test_old_or_corrupt_records_do_not_replace_a_group_name(self):
+        for record in ("bad-json", "[]", json.dumps({"name":"Old task","tab":"old","pid":999,"created_ms":2})):
+            app = App(); app.extra_source = True; app.names["source"] = "Group name"
+            app.t["labels"] = {module.TITLE_LABEL: record}
+            result = module.move("t", None, "tab", app.call, lambda _: None)
+            self.assertTrue(result["ok"]); self.assertEqual(app.names["recovered"], "Group name")
+
+    def test_generated_address_title_uses_the_actual_task_and_recovery_keeps_the_title(self):
+        app = App(); app.names["source"] = "t"; app.t["title"] = "⠋ Fix login | s"
+        app.snapshot = (lambda original: lambda: {**original(), "spaces": [{**s,"name":"s"} for s in original()["spaces"]]})(app.snapshot)
+        app.fail_keep = True
+        result = module.move("t", "p-target", "right", app.call, lambda _: None)
+        self.assertFalse(result["ok"]); self.assertTrue(result["recovered"])
+        self.assertEqual(app.names["recovered"], "Fix login")
 
 
 if __name__ == "__main__": unittest.main()

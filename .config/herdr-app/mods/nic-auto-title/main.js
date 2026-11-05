@@ -3,6 +3,7 @@ import { h_flex } from "gpui-base";
 import { home } from "herdr";
 import { AutoTitles } from "./auto-title.js";
 import { spaces, panes, run, openOverlay, theme, window, shared, layout, settings } from "herdr";
+import { TabDrag } from "./drag-ui.js";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -14,11 +15,13 @@ function find(node, id) {
 }
 
 export default class Tabs extends View {
-  init() {
+  init(_props, cx) {
     this.autoTitles = new AutoTitles(localStorage, (id, name) => run("tab.rename", { id, name }), home());
-    this.pressed = null;
+    this.drag = new TabDrag(cx);
     this.panels = JSON.parse(localStorage.getItem("panels") ?? "{}");
   }
+
+  close() { this.drag.close(); }
 
   // The side panel is remembered per space: switching shows that space's choice
   // (closed if it never had one), and opening or closing it records it.
@@ -53,27 +56,23 @@ export default class Tabs extends View {
     const t = theme();
     const space = spaces().find(p => p.active);
     const shown = space?.tabs ?? [];
-    const stop = (_e, cx) => cx.stop_propagation();
+    const stop = (_e, cx) => { cx.stop_propagation(); this.drag.cancel(false); };
     const button = (id, label, action) => div().id(id).size(26).flex_none().flex().items_center().justify_center().rounded(6).text_color(t.dim).hover(s => s.bg(t.hover).text_color(t.foreground))
-      .on_mouse_down("left", stop).on_click(action).child(label);
-    const item = (c, i) => {
+      .on_mouse_down("left", stop).on_mouse_up("left", stop).on_click(action).child(label);
+    const item = c => {
       const program = panes().find(p => p.tab === c.id && p.program?.agent)?.program ?? panes().find(p => p.tab === c.id)?.program;
       const name = /^tb\d+$/.test(c.name) ? program?.name ?? "Terminal" : c.name;
-      return h_flex().id(`tab-${c.id}`).h(29).px(10).gap(7).rounded(7).items_center().flex_none().text_size(12.8)
+      const row = h_flex().id(`tab-${c.id}`).h(29).px(10).gap(7).rounded(7).items_center().flex_none().text_size(12.8)
         .border(1).border_color(c.active ? t.border : t.chrome).bg(c.active ? t.raised : t.chrome).text_color(c.active ? t.foreground : t.muted)
         .hover(s => s.bg(t.hover))
-        .on_mouse_down("left", (e, cx) => { cx.stop_propagation(); this.pressed = i; if (e.click_count === 2) run("tab.rename", { id: c.id }); })
-        .on_mouse_up("left", () => {
-          const from = this.pressed; this.pressed = null;
-          if (from !== null && from !== i) run("tab.move", { id: shown[from].id, index: space.tabs.findIndex(x => x.id === c.id) + 1 });
-          else run("tab.select", { id: c.id });
-        })
         .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", width: 280, height: 330, props: { tab: "tab", target: { id: c.id, space: space.id } } }))
         .when(Boolean(program?.icon), el => el.child(program.tint ? svg(program.icon).size(14).text_color(t.muted) : image(program.icon).size(14)))
         .child(div().max_w(320).truncate().child(c.zoomed ? `${name} Z` : name))
         .when(c.status === "working", el => el.child(svg("mods/workspace-chrome/spinner.svg").size(12).flex_none().text_color(t.working).spin(900)))
         .when(c.status === "blocked" || c.status === "done", el => el.child(div().size(6).rounded(3).bg(t[c.status])))
-        .when(c.active, el => el.child(div().id(`close-${c.id}`).text_color(t.dim).on_mouse_down("left", stop).on_click((_e, cx) => { cx.stop_propagation(); run("tab.close", { id: c.id }); }).child(svg("mods/pane/close.svg").size(12))));
+        .when(c.active, el => el.child(div().id(`close-${c.id}`).text_color(t.dim).on_mouse_down("left", stop).on_mouse_up("left", stop).on_click((_e, cx) => { cx.stop_propagation(); run("tab.close", { id: c.id }); }).child(svg("mods/pane/close.svg").size(12))));
+      return this.drag.row(row, "tab", c.id, "horizontal", t,
+        () => run("tab.rename", { id: c.id }), () => run("tab.select", { id: c.id }));
     };
     const root = layout(), sidebar = find(root, "sidebar"), w = window();
     // Old saved rails and a dragged-narrow sidebar can be smaller than the window buttons.
@@ -93,15 +92,16 @@ export default class Tabs extends View {
           else { run("layout.select", { stack: "panel-body", child: id }); run("layout.show", { id: "panel" }); }
         }).child(svg(icon).size(14)).child(label);
     };
-    return h_flex().size_full().min_w(0).px(10).pl(lightsPadding).gap(3).items_center().bg(t.chrome).border_b(1).border_color(t.border)
-      .on_mouse_up("left", () => { this.pressed = null; })
-      .on_scroll_wheel(e => { if (Math.abs(e.delta.y) >= 1) run(e.delta.y > 0 ? "tab.prev" : "tab.next"); })
-      .child(h_flex().id("tab-scroll").flex_1().min_w(0).h_full().items_center().gap(3).overflow_x_scrollbar().children(shown.map(item)))
+    return this.drag.root(h_flex().id("tabs-root").size_full().min_w(0).px(10).pl(lightsPadding).gap(3).items_center().bg(t.chrome).border_b(1).border_color(t.border)
+      .on_scroll_wheel(e => { if (!this.drag.state() && Math.abs(e.delta.y) >= 1) run(e.delta.y > 0 ? "tab.prev" : "tab.next"); })
+      .child(h_flex().id("tab-scroll").flex_1().min_w(0).h_full().items_center().gap(3)
+        .when(this.drag.state()?.active, el => el.overflow_x_scroll())
+        .when(!this.drag.state()?.active, el => el.overflow_x_scrollbar()).children(shown.map(item)))
       .child(button("tab-new", "+", () => openOverlay({ mod: "new-menu", kind: "popup", width: 250, height: 512 })))
       .when(enabled.includes("files"), el => el.child(panelButton("files", "Files", "mods/files/file.svg")))
       .when(enabled.includes("changes"), el => el.child(panelButton("changes", "Changes", "mods/changes/changes.svg")))
       .when(window()?.buttons, el => el.child(button("minimize", "−", () => run("window.minimize")))
         .child(button("maximize", "□", () => run("window.maximize")))
-        .child(button("close-window", svg("mods/pane/close.svg").size(13), () => run("window.close"))));
+        .child(button("close-window", svg("mods/pane/close.svg").size(13), () => run("window.close")))));
   }
 }

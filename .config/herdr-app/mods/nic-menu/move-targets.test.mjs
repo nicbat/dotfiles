@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { moveSource, moveTargets } from "./move-targets.js";
+import { moveSource, moveTargets, unmergeSource } from "./move-targets.js";
 
 const panes = [{ pane: "source", terminal: "t1", tab: "a" },
   { pane: "other", terminal: "t2", tab: "b" }, { pane: "selected", terminal: "t3", tab: "b", focused: true },
@@ -28,4 +28,14 @@ test("destinations retain tab order, prefer selected pane and exclude source, re
     [{ pane: "selected", tab: "b", space: "s", name: "Project / Destination" }]);
   assert.deepEqual(moveTargets({ tab: "remote/b" }, spaces, panes, terminals), []);
   assert.deepEqual(moveTargets(source, spaces, panes, terminals.slice(0, 1)), []);
+});
+
+test("unmerge groups require multiple live local terminal panes; individual terminal moves allow a document sibling", () => {
+  assert.deepEqual(unmergeSource({ tab: "tab", target: { id: "b" } }, spaces, panes, terminals), { tab: "b" });
+  assert.equal(unmergeSource({ tab: "tab", target: { id: "a" } }, spaces, panes, terminals), null);
+  const mixed = panes.map(p => p.pane === "selected" ? { ...p, terminal: null, mod: "notes" } : p);
+  assert.equal(unmergeSource({ tab: "tab", target: { id: "b" } }, spaces, mixed, terminals), null);
+  assert.deepEqual(unmergeSource({ tab: "pane", target: { pane: "other", terminal: "t2" } }, spaces, mixed, terminals), { tab: "b", terminal: "t2" });
+  assert.equal(unmergeSource({ tab: "tab", target: { id: "b" } }, spaces, panes, terminals.slice(0, 2)), null);
+  assert.equal(unmergeSource({ tab: "pane", target: { pane: "other", terminal: "t1" } }, spaces, panes, terminals), null);
 });

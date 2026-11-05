@@ -20,3 +20,15 @@ export function moveTargets(source, spaces, panes, terminals) {
     return pane ? [{ pane: pane.pane, tab: t.id, space: s.id, name: `${s.name} / ${t.name}` }] : [];
   }));
 }
+
+export function unmergeSource(context, spaces, panes, terminals) {
+  const target = context?.target ?? {};
+  const clicked = context?.tab === "pane" ? panes.find(p => p.pane === target.pane && p.terminal === target.terminal) : null;
+  const tab = context?.tab === "tab" ? target.id : clicked?.tab;
+  const space = spaces.find(s => s.tabs.some(t => t.id === tab));
+  const leaves = panes.filter(p => p.tab === tab);
+  if (!space || space.machine || leaves.length < 2) return null;
+  const live = p => p?.terminal && !p.terminal.includes("/") && terminals.some(t => t.address === p.terminal && t.state === "live");
+  if (context.tab === "pane") return live(clicked) ? { tab, terminal: clicked.terminal } : null;
+  return leaves.every(live) ? { tab } : null;
+}

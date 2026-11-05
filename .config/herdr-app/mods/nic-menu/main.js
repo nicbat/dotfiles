@@ -5,8 +5,8 @@
 
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { run, props, closeOverlay, openOverlay, theme, keys, terminals, spaces, panes, exec } from "herdr";
-import { moveSource } from "./move-targets.js";
+import { run, props, closeOverlay, openOverlay, theme, keys, terminals, spaces, panes, exec, home, notify } from "herdr";
+import { moveSource, unmergeSource } from "./move-targets.js";
 import { movePicker } from "./move-view.js";
 
 // Where a space is now: its first terminal's live folder, else where it was made.
@@ -28,6 +28,8 @@ function items(p, git) {
   const tg = p.target ?? {};
   const source = moveSource(p, panes(), terminals());
   const move = source && !source.terminal.includes("/") ? [["Move to tab…", "move-to-tab", { tab: p.tab, target: tg }]] : [];
+  const separate = unmergeSource(p, spaces(), panes(), terminals());
+  const unmerge = separate ? [[p.tab === "pane" ? "Move to own tab" : "Unmerge panes", "unmerge-tab", separate]] : [];
   switch (p.tab) {
     case "pane": {
       // A kept sub-agent can go back under its parent, still running.
@@ -41,6 +43,7 @@ function items(p, git) {
         ["Split down", "pane.split", { direction: "down", pane: tg.pane }],
         ["Zoom", "pane.zoom", { pane: tg.pane }],
         ...move,
+        ...unmerge,
         ...(term
           ? [
               toProgram
@@ -57,6 +60,7 @@ function items(p, git) {
         ["Rename", "tab.rename", { id: tg.id }],
         ["New tab", "tab.new", { space: tg.space }],
         ...move,
+        ...unmerge,
         ["Close", "tab.close", { id: tg.id }],
       ];
     case "space":
@@ -109,8 +113,25 @@ export default class Menu extends View {
   }
 
   choose(i, cx) {
+    if (this.unmerging) return;
     const it = items(props(), this.git)[i];
     if (!it) return;
+    if (it[1] === "unmerge-tab") {
+      this.unmerging = true; cx.notify();
+      const overlay = props()?.overlay;
+      cx.spawn(async cx => {
+        try {
+          const args = [`${home()}/.local/bin/herdr-unmerge-tab.py`, it[2].tab];
+          if (it[2].terminal) args.push(it[2].terminal);
+          const reply = await exec("python3", args);
+          const result = JSON.parse(reply.stdout);
+          if (!result.ok) throw new Error(`${result.moved?.length ? `${result.moved.length} panes separated. ` : ""}${result.error}${result.recovered ? " The interrupted pane is in its own tab." : ""}`);
+          closeOverlay(overlay);
+        } catch (error) { notify({ title: "Could not finish unmerge", body: String(error.message ?? error), level: "error" }); }
+        finally { this.unmerging = false; cx.notify(); }
+      });
+      return;
+    }
     closeOverlay(props()?.overlay);
     if (it[1] === "move-to-tab") openOverlay({ mod: "nic-menu", kind: "dialog", width: 620, height: 480, props: { ...it[2], movePicker: true } });
     else if (it[1] === "worktree") openOverlay({ mod: "worktree", kind: "dialog", ...(it[2].action === "open" ? { width: 560, height: 480 } : { width: 440, height: 260 }), props: it[2] });
@@ -130,6 +151,7 @@ export default class Menu extends View {
       .bg(t.popover)
       .text_size(12.8)
       .on_key_down((e, cx) => {
+        if (this.unmerging) { cx.stop_propagation(); return; }
         if (e.key === "down") this.at = (this.at + 1) % list.length;
         else if (e.key === "up") this.at = (this.at + list.length - 1) % list.length;
         else if (e.key === "enter") this.choose(this.at, cx);
@@ -138,7 +160,7 @@ export default class Menu extends View {
         cx.notify();
       })
       .children(
-        list.map((it, i) =>
+        this.unmerging ? [div().p(10).child("Separating panes…")] : list.map((it, i) =>
           v_flex()
             .when(i > 0 && (it[1].endsWith(".close") || it[1] === "app.help" || (it[1] === "app.theme" && list[i - 1][1] !== "app.theme")), el => el.child(div().mx(7).my(4).h(1).bg(t.border)))
             .child(h_flex()

@@ -42,6 +42,13 @@ export class AutoTitles {
   sync(spaces, panes) {
     let dirty = false;
     for (const space of spaces) for (const tab of space.tabs) {
+      const candidates = panes.filter((p) => p.tab === tab.id && p.terminal);
+      // A named split is a group: focusing or merging a pane must not rename it.
+      // Drop automatic ownership so its remaining pane also keeps the group name.
+      if (tab.named && panes.filter((p) => p.tab === tab.id).length > 1) {
+        if (this.owned[tab.id]) { delete this.owned[tab.id]; dirty = true; }
+        continue;
+      }
       const record = this.owned[tab.id];
       // A not-yet-named tab can also be the old snapshot of a pending rename.
       if (record?.pending && tab.name === record.previous && tab.name !== record.name) continue;
@@ -52,7 +59,6 @@ export class AutoTitles {
         dirty = true;
       }
       if (tab.named && !this.owned[tab.id]) continue;
-      const candidates = panes.filter((p) => p.tab === tab.id && p.terminal);
       const selected = candidates.find((p) => p.focused);
       if (selected) this.leads[tab.id] = selected.pane;
       const lead = selected ?? candidates.find((p) => p.pane === this.leads[tab.id]) ??

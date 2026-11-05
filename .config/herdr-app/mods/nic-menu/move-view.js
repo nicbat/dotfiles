@@ -1,7 +1,7 @@
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { moveSource, moveTargets } from "./move-targets.js";
-import { spaces, panes, terminals, props, theme, exec, home, notify, closeOverlay } from "herdr";
+import { spaces, panes, terminals, props, theme, exec, home, notify, closeOverlay, setShared } from "herdr";
 
 export function movePicker(view) {
   const t = theme(), p = props();
@@ -47,6 +47,7 @@ function submitMove(view, source, selected, direction, cx) {
       const reply = await exec("python3", [`${home()}/.local/bin/herdr-move-terminal.py`, source.terminal, selected.pane, direction]);
       const result = JSON.parse(reply.stdout);
       if (!result.ok) throw new Error(result.error + (result.recovered ? " The terminal was kept in its own tab." : ""));
+      setShared("nic.tabs.merged", { tab: result.tab, token: `menu-${Date.now()}` });
       notify({ title: "Terminal moved", body: selected.name, level: "success", timeout: 2500 });
       closeOverlay(props().overlay);
     } catch (error) {

@@ -47,7 +47,9 @@ const modules = {
     export const window = () => ({ active: test.fixture.windowActive ?? true });
     export const theme = () => new Proxy({}, { get: () => "#556677" });
     export const home = () => "/home/test";
-    export const shared = () => null;
+    export const shared = key => test.shared?.[key] ?? null;
+    export const setShared = (key, value) => { (test.shared ??= {})[key] = value; };
+    export const notify = options => { test.notification = options; };
     export const run = (command, args) => test.actions.push([command, args]);
     export const setAgentOrder = order => { test.order = order; };
     export const hc = () => { throw new Error("No core mutations in view tests"); };

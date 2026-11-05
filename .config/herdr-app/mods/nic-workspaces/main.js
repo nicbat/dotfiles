@@ -8,6 +8,7 @@ import { directCodex, codexSession, newBindings } from "./codex-status.js";
 import { workspaceTree, agentOrder } from "./workspace-tree.js";
 import { readAttention } from "./read-attention.js";
 import { draftTargets, applyDrafts } from "./draft-status.js";
+import { TabDrag } from "./drag-ui.js";
 
 const art = name => `mods/workspace-chrome/${name}.svg`;
 const perform = actions => actions.forEach(([command, args]) => run(command, args));
@@ -24,6 +25,7 @@ function icon(program, fallback, t, size = 15) {
 
 export default class Workspaces extends View {
   init(_props, cx) {
+    this.drag = new TabDrag(cx);
     this.folded = saved("folded-spaces");
     this.expanded = saved("expanded-tabs");
     this.workers = saved("expanded-workers");
@@ -66,6 +68,8 @@ export default class Workspaces extends View {
       }
     });
   }
+
+  close() { this.drag?.close(); }
 
   save() {
     localStorage.setItem("folded-spaces", JSON.stringify([...this.folded]));
@@ -177,7 +181,7 @@ export default class Workspaces extends View {
   disclosure(id, open, t, action) {
     return div().id(id).size(18).flex_none().flex().items_center().justify_center()
       .rounded(4).text_color(t.dim).hover(el => el.bg(t.hover).text_color(t.foreground))
-      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .on_mouse_down("left", (_e, cx) => { cx.stop_propagation(); this.drag?.cancel(false); })
       .on_click((_e, cx) => action(cx))
       .child(svg(art(open ? "chevron-down" : "chevron-right")).size(10));
   }
@@ -198,10 +202,10 @@ export default class Workspaces extends View {
 
   paneRows(pane, t) {
     const open = this.workers.has(pane.id);
-    return [h_flex().id(`pane-${pane.id}`).h(27).flex_none().pl(8).pr(9).gap(7)
+    const row = h_flex().id(`pane-${pane.id}`).h(27).flex_none().pl(8).pr(9).gap(7)
       .items_center().rounded(6).when(pane.focused, el => el.bg(t.accent + "1f"))
       .hover(el => el.bg(pane.focused ? t.accent + "2b" : t.hover))
-      .on_click(() => perform(pane.actions))
+      .on_click(() => { if (!this.drag?.blockClick()) perform(pane.actions); })
       .on_mouse_down("right", () => this.menu("pane", { pane: pane.pane, terminal: pane.terminal }))
       .child(pane.children.length ? this.disclosure(`kids-${pane.id}`, open, t,
         cx => this.toggle(this.workers, pane.id, cx)) : div().w(18).flex_none())
@@ -209,7 +213,9 @@ export default class Workspaces extends View {
       .child(div().flex_1().min_w(0).truncate().text_size(12)
         .text_color(pane.focused ? t.accent : t.muted).tooltip(pane.title).child(pane.title))
       .when(pane.draft, el => el.child(this.draftBadge(1, t)))
-      .when(hasIndicator(pane.status), el => el.child(this.status(pane.status, t))), ...(open ? this.workerRows(pane.children, t) : [])];
+      .when(hasIndicator(pane.status), el => el.child(this.status(pane.status, t)));
+    return [this.drag ? this.drag.row(row, "pane", pane.pane, "vertical", t) : row,
+      ...(open ? this.workerRows(pane.children, t) : [])];
   }
 
   tabRows(space, tab, t) {
@@ -220,7 +226,7 @@ export default class Workspaces extends View {
     const row = h_flex().id(`tab-${tab.id}`).h(29).flex_none().pl(16).pr(9).gap(7)
       .items_center().rounded(6).when(on, el => el.bg(t.accent + "1f"))
       .hover(el => el.bg(on ? t.accent + "2b" : t.hover))
-      .on_click(() => perform(tab.actions))
+      .on_click(() => { if (!this.drag?.blockClick()) perform(tab.actions); })
       .on_mouse_down("right", () => this.menu("tab", { id: tab.id, space: space.id }))
       .child(split || hasWorkers ? this.disclosure(`expand-${tab.id}`, open, t, cx =>
         this.toggle(split ? this.expanded : this.workers, split ? tab.id : tab.single.id, cx)) : div().w(18).flex_none())
@@ -233,9 +239,10 @@ export default class Workspaces extends View {
         .tooltip(`${tab.leaves.length} panes · ${tab.agentCount} agents`).child(String(tab.leaves.length))))
       .when(tab.draftCount > 0 && (!split || !open), el => el.child(this.draftBadge(tab.draftCount, t)))
       .when(hasIndicator(tab.status), el => el.child(this.status(tab.status, t)));
-    if (!open) return [row];
-    if (!split) return [row, ...this.workerRows(tab.single.children, t)];
-    return [row, v_flex().id(`pane-group-${tab.id}`).flex_none().min_w(0)
+    const draggable = this.drag ? this.drag.row(row, "tab", tab.id, "vertical", t) : row;
+    if (!open) return [draggable];
+    if (!split) return [draggable, ...this.workerRows(tab.single.children, t)];
+    return [draggable, v_flex().id(`pane-group-${tab.id}`).flex_none().min_w(0)
       .ml(25).pl(8).pb(2).mb(4).border_l(1).border_color(t.border)
       .children(tab.leaves.flatMap(p => this.paneRows(p, t)))];
   }
@@ -266,6 +273,16 @@ export default class Workspaces extends View {
   render() {
     const t = theme();
     const sp = spaces(), ps = panes(), ts = terminals();
+    const merged = shared("nic.tabs.merged");
+    if (merged?.token && localStorage.getItem("last-merge-token") !== merged.token) {
+      const destination = sp.find(s => s.tabs.some(tab => tab.id === merged.tab));
+      if (destination) {
+        this.expanded.add(merged.tab);
+        this.folded.delete(destination.id);
+        this.save();
+        localStorage.setItem("last-merge-token", merged.token);
+      }
+    }
     // A remote attachment must never borrow a local session's status.
     const localPanes = ps.filter(p => !p.terminal?.includes("/"));
     const local = visibleAgents(agents().filter(a => !a.address.includes("/")), sp, localPanes, ts, this.legacy, Date.now(), this.codex);
@@ -279,7 +296,7 @@ export default class Workspaces extends View {
     setAgentOrder(agentOrder(tree));
     const narrow = (this.width ?? 268) < 160;
     const count = tree.reduce((n, s) => n + s.agentCount, 0);
-    return v_flex().id("workspaces-root").size_full().min_h(0).bg(t.chrome)
+    const root = v_flex().id("workspaces-root").size_full().min_h(0).bg(t.chrome)
       .on_size_change((size, cx) => {
         const was = (this.width ?? 268) < 160;
         this.width = size.width;
@@ -294,5 +311,6 @@ export default class Workspaces extends View {
           .on_click(() => run("space.new")).child(svg(art("plus")).size(12))))
       .child(v_flex().flex_1().min_h(0).px(narrow ? 4 : 7).pb(10)
         .overflow_y_scrollbar().children(tree.flatMap((space, i) => this.spaceRows(space, t, narrow, i))));
+    return this.drag ? this.drag.root(root) : root;
   }
 }

@@ -62,3 +62,27 @@ test('mod-only tabs are untouched and each split tab remembers its focused pane'
   assert.equal(x.calls.length, 1);
   assert.equal(named.name, 'Other task');
 });
+
+test('a named split keeps its title when another pane is merged or focused and after unmerge', () => {
+  const x = setup(); sync(x.controller, tab);
+  const named = { ...tab, named: true, name: x.calls[0].name };
+  sync(x.controller, named);
+  const moved = { ...pane, pane: 'p2', terminal: 't2', title: 'Other task', focused: true };
+  sync(x.controller, named, [pane, moved]);
+  assert.equal(x.calls.length, 1);
+  sync(x.controller, named, [{ ...pane, title: 'New title from the remaining pane' }]);
+  assert.equal(x.calls.length, 1);
+  const reloaded = setup(x.data);
+  sync(reloaded.controller, named, [pane, moved]);
+  assert.equal(reloaded.calls.length, 0);
+});
+
+test('a named mixed document group is stable and explicitly clearing it permits a new title', () => {
+  const x = setup(); sync(x.controller, tab);
+  const named = { ...tab, named: true, name: x.calls[0].name };
+  const document = { pane:'notes', tab:'tab', terminal:null, mod:'notes' };
+  sync(x.controller, named, [{ ...pane, title:'Different task' }, document]);
+  assert.equal(x.calls.length, 1);
+  sync(x.controller, tab, [{ ...pane, title:'Different task' }, document]);
+  assert.equal(x.calls.at(-1).name, 'Different task');
+});

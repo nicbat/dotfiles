@@ -152,6 +152,65 @@ The source tab disappears when its last pane is moved.
 `herdr-app do nic-workspaces.move-to-tab` opens the same picker for the focused
 pane in the combined layout. No automatic move or new agent launch occurs.
 
+### Drag tabs and panes
+
+The personal top tab bar and `nic-combined` sidebar share drag handling:
+
+- Drag a tab to the left/right quarter of another top-bar tab to reorder it.
+  In the sidebar, use the top/bottom quarter of a tab row. An accent insertion
+  line marks the position. Ordering stays within the source space and is saved
+  by the App's normal `tab.move` command; split and document tabs reorder intact.
+- Drop a single-terminal tab on the center of another tab to make a right split.
+  Hold Shift to split below. The target keeps its title, with an outline and a
+  small icon showing side-by-side or stacked panes before release.
+  A tab destination uses its selected terminal pane, or its
+  first terminal pane; a pane-row destination is exact.
+- For an existing split source, expand it in the combined sidebar and drag the
+  individual pane row to another tab or pane. A whole split tab only reorders,
+  as requested. The top bar and sidebar accept drops from each other.
+
+Only the surface under the pointer draws the insertion marker, and only when
+the order would change. The top scroll rail hides while dragging. Split previews
+keep the destination title visible, with an outline and an opaque direction
+badge instead of a text overlay; Shift changes the icon to stacked panes.
+Unavailable targets show no warning cursor or overlay; releasing there does
+nothing. After a menu or drag merge,
+the combined sidebar expands the destination group automatically; a later
+manual collapse stays collapsed until the next merge.
+
+To undo a split, right-click its tab row and choose **Unmerge panes**. The first
+pane keeps the original tab; each other terminal gets its own tab in the same
+space. Or right-click a particular pane and choose **Move to own tab**. No
+process is relaunched. Whole-group unmerge requires live local terminal panes;
+mixed document groups offer individual terminal moves. A failure stops the
+remaining moves and reports any panes already separated.
+
+Before a move, the helper remembers the pane's tab name in a process-bound
+`nic.tab-title` core label. Giving it its own tab restores that name, including
+after repeated merges, unmerges and recovery. Renaming a separate tab updates
+the remembered name on its next move. Named split groups keep their group name
+when another pane is merged or focused; pane titles remain independent. Names
+are live core metadata, not a tracked session backup. Older groups without a
+remembered name use their current group name; an address-only tab can recover
+its task from the terminal's title when available.
+
+Move at least six pixels to start a drag. Escape or a release on blank space
+cancels without moving a terminal. A new press clears any abandoned gesture;
+gestures expire after 30 seconds. Remote and document-only split destinations
+remain excluded. The native pane grip still rearranges within its current tab.
+There is no automatic tab switching or edge scrolling during a drag; use the
+sidebar for another workspace or a destination outside the visible tab bar.
+
+`drag-model.js` and `drag-ui.js` are copied identically in `nic-auto-title` and
+`nic-workspaces`, because imports are mod-scoped. The move helper also checks
+the captured pane/tab/process identity before parking; a changed source or
+destination fails without a move. Existing Draft badges, activity, titles,
+menus and completion tracking stay separate. Validate the Node drag-model and
+real-handler fixture suites and Python move tests alongside the existing suites.
+`.local/bin/herdr-unmerge-tab.py` shares the move helper's lock and uses its
+guarded own-tab placement. Include that helper and `test_herdr_unmerge_tab.py`
+when restoring; the on-demand backup path list includes both.
+
 ## Draft prompts
 
 Both personal sidebars show an amber **Draft** badge when a recognized visible
