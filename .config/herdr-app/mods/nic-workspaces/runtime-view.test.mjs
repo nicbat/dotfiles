@@ -3,6 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
+import { draftIdentity } from "./draft-status.js";
 
 class Element {
   constructor() {
@@ -37,7 +38,7 @@ function element() {
 globalThis.herdrViewTest = { element, fixture: {}, actions: [] };
 const modules = {
   "gpui-kit": 'export class View {}\nexport const div = globalThis.herdrViewTest.element; export const svg = div; export const image = div;',
-  "gpui-base": 'export const v_flex = globalThis.herdrViewTest.element; export const h_flex = v_flex;',
+  "gpui-base": 'export const v_flex = globalThis.herdrViewTest.element; export const h_flex = v_flex; export const Scrollbar = { vertical: v_flex };',
   "herdr": `const test = globalThis.herdrViewTest;
     export const spaces = () => test.fixture.spaces;
     export const panes = () => test.fixture.panes;
@@ -48,6 +49,7 @@ const modules = {
     export const theme = () => new Proxy({}, { get: () => "#556677" });
     export const home = () => "/home/test";
     export const shared = key => test.shared?.[key] ?? null;
+    export const props = () => test.props ?? {};
     export const setShared = (key, value) => { (test.shared ??= {})[key] = value; };
     export const notify = options => { test.notification = options; };
     export const run = (command, args) => test.actions.push([command, args]);
@@ -85,11 +87,116 @@ function setup() {
     agents: [{ address: "t1", pane: "p1", tab: "split", title: "Review changes", status: "blocked",
       program: { name: "Codex", key: "codex", agent: true, icon: "icons/codex.svg", tint: false } }]
   };
-  Object.assign(globalThis.herdrViewTest, { fixture, actions: [] });
+  Object.assign(globalThis.herdrViewTest, { fixture, actions: [], props: {} });
   const view = new Workspaces();
   Object.assign(view, { folded: new Set(), expanded: new Set(["split"]), workers: new Set(), legacy: {} });
   return view;
 }
+
+test("hovering a space replaces its count with a new-tab action and restores it on exit", () => {
+  const view = setup();
+  const state = globalThis.herdrViewTest;
+  state.fixture.spaces.push({ id: "remote/project", name: "Other", machine: "remote", tabs: [] });
+  let notifications = 0;
+  const cx = { notify() { notifications++; } };
+  let root = view.render();
+  const count = lookup(root, "space-action-s");
+  assert.deepEqual(texts(count), ["1"]);
+  lookup(root, "space-s").methods.on_hover[0](true, cx);
+  root = view.render();
+  assert.ok(lookup(root, "space-plus-s"));
+  assert.deepEqual(texts(lookup(root, "space-action-s")), []);
+  assert.deepEqual(lookup(root, "space-action-s").methods.size, count.methods.size);
+  assert.deepEqual(texts(lookup(root, "space-action-remote/project")), ["0"]);
+  assert.equal(lookup(root, "space-action-s").methods.tooltip[0], "New tab in Project");
+  // A late exit from the previous row must not hide the current row's action.
+  lookup(root, "space-remote/project").methods.on_hover[0](true, cx);
+  lookup(root, "space-s").methods.on_hover[0](false, cx);
+  root = view.render();
+  assert.deepEqual(texts(lookup(root, "space-action-s")), ["1"]);
+  assert.ok(lookup(root, "space-plus-remote/project"));
+  lookup(root, "space-remote/project").methods.on_hover[0](false, cx);
+  root = view.render();
+  assert.deepEqual(texts(lookup(root, "space-action-remote/project")), ["0"]);
+  assert.equal(lookup(root, "space-plus-remote/project"), undefined);
+  assert.equal(notifications, 3);
+  assert.deepEqual(state.actions, []);
+});
+
+test("a folded inactive space's + opens one tab in that space without selecting the row", () => {
+  const view = setup();
+  const state = globalThis.herdrViewTest;
+  state.fixture.spaces.push({ id: "other", name: "Other", tabs: [] });
+  view.folded.add("other");
+  let root = view.render();
+  lookup(root, "space-other").methods.on_hover[0](true, { notify() {} });
+  root = view.render();
+  let stopped = false;
+  const cx = { stop_propagation() { stopped = true; } };
+  lookup(root, "space-action-other").methods.on_click[0](null, cx);
+  if (!stopped) lookup(root, "space-other").methods.on_click[0]();
+  assert.equal(stopped, true);
+  assert.deepEqual(state.actions, [["tab.new", { space: "other" }]]);
+  lookup(root, "space-other").methods.on_click[0]();
+  assert.deepEqual(state.actions[1], ["space.select", { id: "other" }]);
+  assert.ok(view.folded.has("other"));
+  view.width = 100;
+  assert.equal(lookup(view.render(), "space-action-other"), undefined);
+});
+
+test("inline shell badges follow leaves, collapsed splits and folded spaces without additional rows", () => {
+  const view = setup();
+  const f = globalThis.herdrViewTest.fixture;
+  const terminal = { address: "t1", state: "live", pid: 10, foreground: { pid: 11 } };
+  f.terminals = [terminal];
+  view.drafts = { t1: { identity: draftIdentity(terminal), checkedAt: Date.now(), draft: true, shells: 2 } };
+  let root = view.render();
+  assert.deepEqual(texts(lookup(root, "background-p1")), ["2"]);
+  assert.ok(lookup(lookup(root, "pane-p1"), "background-p1"));
+  assert.equal(lookup(root, "pane-p1").methods.h[0], 27);
+  assert.equal(lookup(root, "background-split"), undefined);
+  assert.ok(texts(lookup(root, "pane-p1")).includes("Draft"));
+  lookup(root, "pane-p1").methods.on_click[0]();
+  assert.deepEqual(globalThis.herdrViewTest.actions, [["pane.focus", { pane: "p1" }]]);
+  view.expanded.clear();
+  root = view.render();
+  assert.deepEqual(texts(lookup(root, "background-split")), ["2"]);
+  assert.ok(lookup(lookup(root, "tab-split"), "background-split"));
+  assert.equal(lookup(root, "background-p1"), undefined);
+  view.folded.add("s");
+  root = view.render();
+  assert.deepEqual(texts(lookup(root, "background-s")), ["2"]);
+  assert.ok(lookup(lookup(root, "space-s"), "background-s"));
+  assert.equal(lookup(root, "background-split"), undefined);
+  view.drafts.t1.checkedAt -= 9000;
+  root = view.render();
+  assert.equal(lookup(root, "background-s"), undefined);
+});
+
+test("sidebar reload retains the observed Codex startup; process changes renew it and removed sessions are pruned", () => {
+  setup();
+  const f = globalThis.herdrViewTest.fixture;
+  f.terminals = [{ address: "t1", state: "live", foreground: { name: "codex", pid: 123 } }];
+  const storage = new Map([["codex-starts", JSON.stringify({ t1: { pid: 123, seenAt: 1000 } })]]);
+  const original = globalThis.localStorage;
+  globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
+  try {
+    const view = new Workspaces();
+    view.init({}, { focus_handle: () => ({}), notify() {},
+      timer: { every() {}, after: () => ({ cancel() {} }) }, spawn() {} });
+    assert.equal(view.codexStarts.t1.seenAt, 1000);
+    assert.equal(JSON.parse(storage.get("codex-starts")).t1.seenAt, 1000);
+    f.terminals[0].foreground.pid = 456;
+    view.codexBusy = false;
+    view.refreshCodex({ spawn() {} });
+    assert.equal(JSON.parse(storage.get("codex-starts")).t1.pid, 456);
+    assert.ok(view.codexStarts.t1.seenAt > 1000);
+    f.terminals = [];
+    view.codexBusy = false;
+    view.refreshCodex({ spawn() {} });
+    assert.deepEqual(JSON.parse(storage.get("codex-starts")), {});
+  } finally { globalThis.localStorage = original; }
+});
 
 test("live mixed rows render valid native children and handlers focus the exact leaf or preserve split selection", () => {
   const view = setup();
@@ -101,6 +208,18 @@ test("live mixed rows render valid native children and handlers focus the exact 
   lookup(root, "pane-p2").methods.on_click[0]();
   assert.deepEqual(globalThis.herdrViewTest.actions, [["pane.focus", { pane: "p0" }],
     ["space.select", { id: "s" }], ["tab.select", { id: "split" }], ["pane.focus", { pane: "p2" }]]);
+});
+
+test("a separate section header removes only the duplicate title and preserves navigation and agent order", () => {
+  const view = setup();
+  globalThis.herdrViewTest.props = { hideHeader: true, section: "workspace-section" };
+  const root = view.render();
+  assert.equal(lookup(root, "new-space"), undefined);
+  assert.ok(lookup(root, "space-s"));
+  assert.ok(lookup(root, "pane-p1"));
+  assert.equal(globalThis.herdrViewTest.shared["nic.sidebar.workspaces-count"], 1);
+  lookup(root, "pane-p2").methods.on_click[0]();
+  assert.deepEqual(globalThis.herdrViewTest.actions, [["pane.focus", { pane: "p2" }]]);
 });
 
 test("disclosures fold without changing focus and retain space count and attention", () => {

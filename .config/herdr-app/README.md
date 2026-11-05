@@ -31,10 +31,12 @@ staged and unstaged dotfile changes.
   Review/trust the observer through `/hooks` on each computer. It emits no hook
   decisions. Records in `~/.local/state/herdr-native-status` remain local and
   are never backed up; native OSC 7501 reports take precedence when available.
-- `mods/nic-workspace-status`: the bottom bar counts the same recognized
+- `mods/nic-workspace-status`: counts the same recognized
   agents as the sidebar, including live legacy attachments and declawd
-  wrappers without native status reports. It shows `working/total agents`,
-  using native reports, fresh local attachment snapshots, and Codex hook
+  wrappers without native status reports. In `nic-combined`, it supplies
+  `working/total agents` to the Workspaces section header; the bottom bar keeps
+  machine, branch and palette controls. Other layouts retain the bottom counter.
+  Counts use native reports, fresh local attachment snapshots, and Codex hook
   records bound to the live session and foreground PID. Its “needs you” count
   uses reported blocked states; unavailable status stays distinct in the
   tooltip. Herdr scopes imports to each mod; keep its local `visible-agents.js`
@@ -79,7 +81,55 @@ has Lua and Python tests under its `tests/` directory.
 
 ## Combined workspace sidebar
 
-Select `nic-combined` for the personal Space → Tab → Pane sidebar. All tabs
+Select `nic-combined` for the personal Space → Tab → Pane sidebar, now above a
+shared personal **Todo** section. Click either section's header to collapse its
+body; drag the divider between them to resize. Each body scrolls independently;
+its scrollbar uses a narrow 8px rail and fades out over 150ms after 300ms idle.
+The rail stays visible while hovered and is omitted when the content fits.
+Native scrolling and thumb dragging are retained; todo +/×/check actions share
+the same right-hand column.
+Workspace rows use the same right inset and a fixed 22px status column. Space
+counts and hover + controls stay at the far right, with aggregate status beside
+them; tab, pane and worker indicators share that edge. Idle rows reserve their
+status space so adjacent badges stay put. Section-header + controls align too.
+Expanded Spaces leave selection highlighting to their tabs; a Space keeps its
+own highlight when collapsed or shown in the narrow rail.
+Collapsed sections keep their header and count; reopening restores the previous
+height within the available window space. Section sizes and collapse state are
+saved by Herdr. The original sidebar node ID is retained for workspace storage.
+The Workspaces header shows working/total agents and a status dot: blocked when
+an agent needs attention, working while agents work, otherwise dim. Its tooltip
+includes working, total, needs-attention and unavailable counts. There is no
+duplicate agent counter at the bottom of this layout.
+
+Type in **Add a todo…** and press Enter (or +). Check an item to complete it;
+completed items stay muted below open ones and can be reopened. Click a title
+to edit; a checkmark replaces the row's × while editing. Enter/check saves and
+Escape cancels. The row's ×
+deletes it, with **Undo** for the latest deletion. The header counts open items.
+One list follows you across Spaces, and unfinished add text survives reloads.
+No agent changes the list automatically.
+
+`mods/nic-todo` uses local storage for entries and add text. Herdr stores it under
+`data/nic-todo/`; it is personal data, excluded from dotfiles backup, not synced
+between computers. Malformed or unknown-version saved entries are kept intact
+and editing is disabled until the data is repaired. Undo is available until the
+next deletion or mod/app reload. The narrow sidebar rail retains the section
+chevrons but hides todo entry and rows; widen it to edit the list.
+
+`mods/nic-sidebar-section` provides reusable section headers. Each is a column
+with a fixed 30px header and a body block; their parent column owns native
+dividers. Header props name the section, body, parent, title and optional count
+and add action. An optional `activity` prop reads the shared agent summary from
+`nic.sidebar.agent-counts`; the footer publishes only when counts change.
+Body mods publish their full section height for size restoration.
+Use `herdr-app do nic-sidebar-section.toggle-todo-section` or
+`toggle-workspace-section` to toggle the corresponding section without pointer
+input. New sections can reuse this mod; keep the `<section>-header` ID convention.
+Validate its and the todo's `*.test.mjs` suites alongside the workspace suite,
+then native-check all three mods and view a screenshot. `nic-main` is unchanged.
+
+All tabs
 remain listed, including shells, editors, settled tabs, and mod/document panes.
 Single-pane tabs use one row; split tabs show a pane count and expand with the
 chevron. Expanded panes sit in an indented group with a vertical guide, with
@@ -87,6 +137,8 @@ aligned icons for agent, shell, and document panes. Clicking a pane focuses
 that exact pane; clicking a split tab keeps
 its existing pane selection. Space and tab order stay stable as activity changes.
 Space chevrons fold their tabs while keeping agent counts and attention badges.
+Hovering a space replaces its agent count with a + button. Click + to open a
+new shell tab in that space; clicking elsewhere on the row selects the space.
 The top tab bar, pane headers, Files/Changes panel, and personal footer remain.
 
 `mods/nic-workspaces` retains full-color program logos and the installed
@@ -125,7 +177,7 @@ The source lifecycle report is preserved; only its sidebar presentation changes.
 Read/idle agents have no status glyph. Spinners remain Working, `!` remains
 Needs you, and `?` remains Status unavailable. This applies to the combined
 sidebar; `nic-main` retains its existing behavior. All personal status readers
-include the Codex hook reader. The footer counts the raw working status,
+include the Codex hook reader. The shared counter uses the raw working status,
 independent of the sidebar's completion/read presentation.
 
 ## Move to tab
@@ -237,3 +289,28 @@ Tests: Node suites beside the affected mods, and Python
 `test_herdr_draft_status.py`, `test_herdr_move_terminal.py`, plus the existing
 native-status observer tests under `.local/bin`. These helpers are included
 in the on-demand backup's path list; no new service or hook is installed.
+
+## Background shells and Codex startup
+
+Both personal sidebars show an inline amber terminal icon and count beside
+agents whose live Codex or Claude footer reports background shells. Hover for
+the full label; click the agent row to view its own shell controls. Collapsed splits and folded
+workspaces in `nic-combined` retain totals; `N+` means another supported agent's
+count is unavailable. Shells never increase the agent count or change lifecycle
+status, draft hints or completion acknowledgment.
+
+The existing `herdr-draft-status.py` observer now also reads bounded footer counts
+in the same screen observation. Counts expire after eight seconds, reject changed
+terminal/foreground identities, and clear on failed reads. Wrapped native footers
+are supported; custom status lines, transcript mentions and text in a composer
+are excluded. A hidden/clipped Claude count remains unknown; Pi's stock shell
+inventory is unsupported. No additional daemon, hook, input or history read is used.
+
+Codex startup binding allows up to 90 seconds between observing the foreground
+process and its SessionStart, with a two-minute record-arrival window. Stored
+startup observations survive sidebar reloads, renew when the process changes and
+are pruned when it disappears. Binding still requires a mutually unique session,
+folder and time match; native reports win and ambiguous matches stay unavailable.
+Older unbound sessions need an explicitly verified session/PID binding. This fixes
+the short startup window that missed slow wrapped launches; it does not fabricate
+native OSC reports or restart existing sessions.

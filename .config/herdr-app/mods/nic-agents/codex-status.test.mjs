@@ -40,6 +40,17 @@ test('future launches bind only with a fresh, mutually unique startup and matchi
   assert.deepEqual(newBindings([unbound, { ...unbound, address: 't2' }], [record],
     { ...starts, t2: { pid: 123, seenAt: 1200 } }, 2000), []);
   assert.deepEqual(newBindings([unbound], [{ ...record, cwd: '/other' }], starts, 2000), []);
-  assert.deepEqual(newBindings([unbound], [record], starts, 20000), []);
+  assert.deepEqual(newBindings([unbound], [record], starts, 121000), []);
   assert.deepEqual(newBindings([terminal], [record], starts, 2000), []);
+});
+
+test('slow wrapper startup binds within a bounded window, without future or replacement matches', () => {
+  const unbound = { ...terminal, labels: {} };
+  const starts = { t1: { pid: 123, seenAt: 1000 } };
+  const delayed = { ...record, session_started_ms: 75000 };
+  assert.equal(newBindings([unbound], [delayed], starts, 80000).length, 1);
+  assert.deepEqual(newBindings([unbound], [delayed], starts, 74000), []);
+  assert.deepEqual(newBindings([unbound], [{ ...delayed, session_started_ms: 92000 }], starts, 93000), []);
+  assert.deepEqual(newBindings([{ ...unbound, foreground: { ...unbound.foreground, pid: 456 } }], [delayed], starts, 80000), []);
+  assert.deepEqual(newBindings([unbound], [delayed, { ...delayed, session_id: 'ambiguous' }], starts, 80000), []);
 });

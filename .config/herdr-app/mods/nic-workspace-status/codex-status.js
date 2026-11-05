@@ -31,8 +31,10 @@ export function newBindings(terminals, records, starts, now) {
     const start = starts[terminal.address];
     return !record.ignored && valid(record.session_id) && !bound.has(record.session_id) &&
       start?.pid === terminal.foreground.pid && record.cwd === terminal.foreground.cwd &&
-      Number.isFinite(record.session_started_ms) && now - record.session_started_ms < 15000 &&
-      Math.abs(start.seenAt - record.session_started_ms) < 10000;
+      Number.isFinite(record.session_started_ms) && now >= record.session_started_ms &&
+      now - record.session_started_ms < 120000 &&
+      record.session_started_ms >= start.seenAt - 10000 &&
+      record.session_started_ms - start.seenAt < 90000;
   }) }));
   return candidates.filter(c => c.records.length === 1 && candidates.filter(other =>
     other.records.some(r => r.session_id === c.records[0].session_id)).length === 1)

@@ -47,6 +47,11 @@ const modules = {
     export const keys = () => [];
     export const theme = () => new Proxy({}, { get: () => "#556677" });
     export const home = () => "/home/test";
+    export const props = () => test.props ?? {};
+    export const shared = key => test.shared?.[key] ?? null;
+    export const setShared = (key, value) => { (test.shared ??= {})[key] = value; test.publications++; };
+    export const layout = () => ({ id: "sidebar", size: { px: 268 }, children: [] });
+    export const nextCommand = () => new Promise(() => {});
     export const run = () => { throw new Error("No workspace mutations"); };
     export const readTextFile = async path => test.fixture.records[path.split("/").pop().slice(0, -5)] ?? null;
     export const exec = async (command, args) => {
@@ -67,6 +72,7 @@ registerHooks({
 });
 
 const { default: WorkspaceStatus } = await import("./main.js");
+const { default: SidebarSection } = await import("../nic-sidebar-section/main.js");
 const texts = el => typeof el === "string" ? [el] : el.items.flatMap(texts);
 function setup() {
   const fixture = {
@@ -86,7 +92,7 @@ function setup() {
     records: { "session-a": JSON.stringify({ session_id: "session-a", state: "working" }) },
     source: [{ pane_id: "source-pane", agent: "claude", agent_status: "working" }]
   };
-  Object.assign(globalThis.herdrFooterTest, { fixture, calls: [] });
+  Object.assign(globalThis.herdrFooterTest, { fixture, calls: [], props: {}, shared: {}, publications: 0 });
   const tasks = [], timers = [];
   const cx = { timer: { every: (ms, fn) => timers.push([ms, fn]) },
     spawn: fn => tasks.push(fn(cx)), notify() {} };
@@ -150,5 +156,50 @@ test("closed sessions leave the total; hidden reported agents count and plain jo
   view.refreshCodex(cx);
   await drain();
   assert.equal(label(view), "3/4 agents");
+});
+
+test("a hidden footer counter supplies the same live counts to the Workspaces header without repeat publications", async () => {
+  const { view, fixture, timers, cx, drain } = setup();
+  await drain();
+  const state = globalThis.herdrFooterTest;
+  state.props = { hideAgents: true };
+  let footer = view.render();
+  assert.ok(texts(footer).includes("This computer"));
+  assert.ok(texts(footer).includes("commands"));
+  assert.equal(texts(footer).some(text => /agents$/.test(text)), false);
+  assert.deepEqual(state.shared["nic.sidebar.agent-counts"], { working: 3, total: 4, needs: 0, unknown: 1 });
+  assert.equal(state.publications, 1);
+  view.render();
+  assert.equal(state.publications, 1);
+  const section = new SidebarSection();
+  state.props = { title: "Workspaces", activity: "nic.sidebar.agent-counts" };
+  assert.ok(texts(section.render()).includes("3/4 agents"));
+  assert.ok(tooltips(section.render()).includes("3 working · 4 open agent sessions · 1 status unavailable"));
+  fixture.agents[0].status = "blocked";
+  fixture.records["session-a"] = JSON.stringify({ session_id: "session-a", state: "done" });
+  for (const [, tick] of timers) tick(cx);
+  await drain();
+  state.props = { hideAgents: true };
+  view.render();
+  state.props = { title: "Workspaces", activity: "nic.sidebar.agent-counts" };
+  assert.ok(texts(section.render()).includes("1/4 agents"));
+  assert.ok(tooltips(section.render()).some(text => text.includes("1 needs you")));
+  assert.equal(state.publications, 2);
+  state.props = { title: "Todo", count: "todo-count", suffix: "open" };
+  state.shared["todo-count"] = 5;
+  assert.ok(texts(section.render()).includes("5 open"));
+});
+
+test("the header restores zero after all agents leave", async () => {
+  const { view, fixture, drain } = setup();
+  await drain();
+  view.render();
+  fixture.agents = [];
+  fixture.terminals = [];
+  view.render();
+  const state = globalThis.herdrFooterTest;
+  assert.deepEqual(state.shared["nic.sidebar.agent-counts"], { working: 0, total: 0, needs: 0, unknown: 0 });
+  state.props = { title: "Workspaces", activity: "nic.sidebar.agent-counts" };
+  assert.ok(texts(new SidebarSection().render()).includes("0/0 agents"));
 });
 globalThis.localStorage = { getItem: () => null, setItem: () => {} };

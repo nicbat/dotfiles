@@ -19,7 +19,7 @@ function element() {
 globalThis.dragRuntimeTest = { element };
 const modules = {
   "gpui-kit": 'export class View {}\nexport const div = globalThis.dragRuntimeTest.element; export const svg = div; export const image = div;',
-  "gpui-base": 'export const v_flex = globalThis.dragRuntimeTest.element; export const h_flex = v_flex;',
+  "gpui-base": 'export const v_flex = globalThis.dragRuntimeTest.element; export const h_flex = v_flex; export const Scrollbar = { vertical: v_flex };',
   "herdr": `const test = globalThis.dragRuntimeTest;
     export const spaces = () => test.fixture.spaces;
     export const panes = () => test.fixture.panes;
@@ -33,6 +33,7 @@ const modules = {
     export const home = () => "/home/test";
     export const shared = key => test.shared[key] ?? null;
     export const setShared = (key, value) => { test.shared[key] = value; };
+    export const props = () => ({});
     export const run = (command, args) => test.actions.push([command, args]);
     export const setAgentOrder = () => {};
     export const hc = () => { throw new Error("No core mutations in fixture tests"); };

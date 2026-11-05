@@ -9,7 +9,7 @@ import { agentLabel } from "./agent-title.js";
 import { tabGroups } from "./tab-groups.js";
 import { visibleAgents, legacyAttachment } from "./visible-agents.js";
 import { directCodex, codexSession, newBindings } from "./codex-status.js";
-import { draftTargets, applyDrafts } from "./draft-status.js";
+import { draftTargets, applyDrafts, backgroundLabel } from "./draft-status.js";
 import { agents, terminals, panes, focused, spaces, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout } from "herdr";
 
 function find(node, id) {
@@ -70,7 +70,8 @@ export default class Agents extends View {
     cx.timer.every(3000, cx => this.refreshLegacy(cx));
     this.refreshLegacy(cx);
     this.codex = {};
-    this.codexStarts = {};
+    try { this.codexStarts = JSON.parse(localStorage.getItem("codex-starts") ?? "{}"); }
+    catch (_) { this.codexStarts = {}; }
     this.codexBusy = false;
     cx.timer.every(1500, cx => this.refreshCodex(cx));
     this.refreshCodex(cx);
@@ -89,10 +90,19 @@ export default class Agents extends View {
     if (this.codexBusy) return;
     const all = terminals();
     const now = Date.now();
+    let startsChanged = false;
     for (const terminal of all.filter(directCodex)) {
-      if (this.codexStarts[terminal.address]?.pid !== terminal.foreground.pid)
+      if (this.codexStarts[terminal.address]?.pid !== terminal.foreground.pid) {
         this.codexStarts[terminal.address] = { pid: terminal.foreground.pid, seenAt: now };
+        startsChanged = true;
+      }
     }
+    for (const address of Object.keys(this.codexStarts)) {
+      if (!all.some(t => t.address === address && directCodex(t))) {
+        delete this.codexStarts[address]; startsChanged = true;
+      }
+    }
+    if (startsChanged) localStorage.setItem("codex-starts", JSON.stringify(this.codexStarts));
     const sessions = new Set(all.map(codexSession).filter(Boolean));
     const unbound = all.some(t => directCodex(t) && !codexSession(t));
     this.codexBusy = true;
@@ -107,7 +117,7 @@ export default class Agents extends View {
             if (record && record.session_id === name.slice(0, -5)) records.push(record);
           } catch (_) { /* No record means unavailable. */ }
         }));
-        for (const binding of newBindings(all, records, this.codexStarts, Date.now()))
+        for (const binding of newBindings(terminals(), records, this.codexStarts, Date.now()))
           await hc(["label", binding.terminal, `herdr.codex.session=${binding.session}`, `herdr.codex.pid=${binding.pid}`]);
       } catch (_) { /* Missing observer directory is expected before the first event. */ }
       finally {
@@ -449,6 +459,11 @@ export default class Agents extends View {
         .when(this.hovered !== a.address && Boolean(when), el => el.child(div().flex_none().text_size(11).text_color(t.dim).child(duration(now - when))))
         .when(a.draft, el => el.child(div().flex_none().px(5).h(17).rounded(4).text_size(10)
           .text_color(t.ansi3).bg(t.ansi3 + "18").tooltip("Draft prompt — unsubmitted input").child("Draft")))
+        .when(a.shells > 0, el => el.child(h_flex().id(`background-${a.address}`)
+          .h(17).flex_none().gap(3).items_center().text_size(10.5).text_color(t.ansi3)
+          .tooltip(`${backgroundLabel(a.shells)} reported by this agent's live footer.`)
+          .child(svg("mods/workspace-chrome/terminal.svg").size(11).flex_none())
+          .child(String(a.shells))))
         .child(this.status(t, a, byPriority && !isPinned));
     };
 

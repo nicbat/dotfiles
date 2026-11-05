@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Observe styled visible composers; emit booleans, never prompt text."""
+"""Observe styled visible composers/footers; never emit terminal text."""
 import concurrent.futures
 import json
 import os
@@ -131,6 +131,99 @@ def detect_draft(raw, kind, rows=100, cols=400):
     return False
 
 
+def background_shells(raw, kind, rows=100, cols=400):
+    """Port the legacy background-activity adapter's bounded footer counts.
+
+    None means unavailable/unsupported, never zero. Counts aren't lifecycle state.
+    """
+    lines = ["".join(c for c, _ in line).strip() for line in screen_lines(raw, rows, cols)]
+    if not lines or kind not in {"codex", "claude"}: return None
+    if kind == "codex":
+        def count_block(end):
+            start = end
+            while start > 0 and end - start < 5 and lines[start - 1]: start -= 1
+            working = re.match(r"^[•◦] .+esc to interrupt.*?[·•] (\d+ background terminals? running.*)$", lines[start])
+            block = working[1] if working else " ".join(lines[start:end + 1])
+            match = re.fullmatch(r"(\d+) background terminal(s?) running(.*)", block)
+            if match:
+                n = int(match[1])
+                if 1 <= n <= 10000 and (n == 1) == (match[2] == "") and " · /ps to view · /stop to close".startswith(match[3]):
+                    return n, block
+            return None, block
+
+        statuses = [i for i, line in enumerate(lines) if re.search(
+            r"\bContext\s+\d+%\s+used\b|\b\d+% context(?: window)? left\b", line, re.I)]
+        # Expanded asynchronous questions replace the normal composer/status.
+        final = lines[-1].lower()
+        if all(h in final for h in ("submit", "skip", "main prompt")) and (not statuses or len(lines) - 1 > statuses[-1]):
+            queued = [i for i, line in enumerate(lines) if line == "• Queued follow-up inputs"]
+            if not queued: return None
+            end = queued[-1] - 1
+            while end >= 0 and not lines[end]: end -= 1
+            return count_block(end)[0] if end >= 0 else None
+        if not statuses or len(lines) - statuses[-1] > 4: return None
+        status = statuses[-1]
+        prompts = [i for i in range(status) if re.match(r"^›(?:\s|$)", lines[i])]
+        if not prompts: return None
+        prompt = prompts[-1]
+        hints = " ".join(lines[status:]).lower()
+        if any(h in hints for h in ("showing detailed transcript", "pgup/pgdn", "↑/↓ to scroll",
+                                    "esc to close", "esc to cancel", "enter to confirm", "enter to select")):
+            return None
+        if "for shortcuts" not in hints and "to queue" not in hints and detect_draft(raw, kind, rows, cols) is not True:
+            return None
+        end = prompt - 1
+        while end >= 0 and not lines[end]: end -= 1
+        question = end >= 1 and lines[end].endswith(" to answer") and re.fullmatch(
+            r"\? [1-9]\d* questions?(?: · .+)?", lines[end - 1])
+        if question:
+            end -= 2
+            while end >= 0 and not lines[end]: end -= 1
+            if end >= 0 and lines[end] == "• Queued follow-up inputs":
+                end -= 1
+                while end >= 0 and not lines[end]: end -= 1
+        if end < 0: return 0 if prompt >= 3 and not question else None
+        count, block = count_block(end)
+        if count is not None: return count
+        if "background terminal" in block.lower() or re.match(r"^\d+(?:\s|$)", block) or "esc to interrupt" in block:
+            return None
+        return 0 if prompt - end - 1 >= 2 and not question else None
+
+    rules = [i for i, line in enumerate(lines) if len(line) >= 10 and set(line) == {"─"}]
+    if len(rules) < 2: return None
+    top, bottom = rules[-2:]
+    footer_lines = lines[bottom + 1:]
+    if "⏺ main" in footer_lines: footer_lines = footer_lines[:footer_lines.index("⏺ main")]
+    while footer_lines and not footer_lines[-1]: footer_lines.pop()
+    if bottom - top < 2 or len(footer_lines) > 8: return None
+    prompt = top + 1
+    while prompt < bottom and not lines[prompt]: prompt += 1
+    if prompt >= bottom or not re.match(r"^❯(?:\s|$)", lines[prompt]): return None
+    hints = " ".join(footer_lines).lower()
+    if any(h in hints for h in ("esc to cancel", "esc to close", "enter to select", "enter to confirm",
+                                "showing detailed transcript", "↑↓ scroll")): return None
+    native = None
+    mode = r"^(?:⏵⏵ (?:auto mode|accept edits|bypass permissions) on|⏸ plan mode on|\? for shortcuts)(?:\s|$)"
+    for i in range(len(footer_lines) - 1, max(-1, len(footer_lines) - 5), -1):
+        joined = " ".join(" ".join(footer_lines[i:]).split())
+        if re.match(mode, joined) or (re.match(r"^[1-9]\d* shells?(?: ·|$)", joined) and
+            joined.endswith("← for agents") and all(line.startswith("· ") for line in footer_lines[i + 1:])):
+            native = joined
+            break
+    if native is None and footer_lines and any(h in footer_lines[-1] for h in ("shift+tab to cycle", "? for shortcuts", "← for agents")):
+        native = footer_lines[-1]
+    if native is None: return None
+    counts = []
+    for part in native.split(" · "):
+        if "shell" not in part: continue
+        match = re.fullmatch(r"([1-9]\d*) shell(s?)", part.strip())
+        if not match: return None
+        n = int(match[1])
+        if n > 10000 or (n == 1) != (match[2] == ""): return None
+        counts.append(n)
+    return counts[0] if len(counts) == 1 else None
+
+
 def observe(target):
     address = target["address"]
     process = None
@@ -153,14 +246,17 @@ def observe(target):
         if process.poll() is None: process.terminate()
         tail, _ = process.communicate(timeout=1)
         raw = b"".join(chunks) + tail
-        draft = detect_draft(raw.decode("utf-8", errors="replace"), target["kind"],
-                             min(target.get("rows") or 100, 250), min(target.get("cols") or 400, 600)) if raw and size < 1024 * 1024 else None
+        text = raw.decode("utf-8", errors="replace")
+        dimensions = (min(target.get("rows") or 100, 250), min(target.get("cols") or 400, 600))
+        draft = detect_draft(text, target["kind"], *dimensions) if raw and len(raw) < 1024 * 1024 else None
+        shells = background_shells(text, target["kind"], *dimensions) if raw and len(raw) < 1024 * 1024 else None
     except (OSError, subprocess.TimeoutExpired, ValueError):
-        draft = None
+        draft = shells = None
     finally:
         if process and process.poll() is None:
             process.kill(); process.wait()
-    return {"address": address, "identity": target["identity"], "draft": draft, "checkedAt": int(time.time() * 1000)}
+    return {"address": address, "identity": target["identity"], "draft": draft,
+            "shells": shells, "checkedAt": int(time.time() * 1000)}
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import { View, div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { spaces, agents, terminals, panes, theme, run, window, keys, exec, home, readTextFile } from "herdr";
+import { spaces, agents, terminals, panes, theme, run, window, keys, exec, home, readTextFile,
+  props, shared, setShared } from "herdr";
 import { visibleAgents, legacyAttachment } from "./visible-agents.js";
 import { codexSession } from "./codex-status.js";
 
@@ -80,14 +81,19 @@ export default class WorkspaceStatus extends View {
     const working = list.filter(a => a.status === "working").length;
     const needs = list.filter(a => a.status === "blocked").length;
     const unknown = list.filter(a => a.status === "unknown").length;
+    const activity = { working, total: list.length, needs, unknown };
+    const previous = shared("nic.sidebar.agent-counts");
+    if (Object.keys(activity).some(key => previous?.[key] !== activity[key])) {
+      setShared("nic.sidebar.agent-counts", activity);
+    }
     const label = (icon, text) => h_flex().gap(6).items_center().child(svg(`mods/workspace-chrome/${icon}.svg`).size(13)).child(text);
     return h_flex().size_full().px(14).gap(16).items_center().bg(t.chrome).border_t(1).border_color(t.border).text_size(11.8).text_color(t.muted)
       .child(label(space?.machine ? "server" : "monitor", space?.machine ?? "This computer"))
       .when(Boolean(space?.branch), el => el.child(label("branch", space.branch)))
-      .child(h_flex().gap(6).items_center()
+      .when(!props()?.hideAgents, el => el.child(h_flex().gap(6).items_center()
         .tooltip(`${working} working · ${list.length} open agent sessions${unknown ? ` · ${unknown} status unavailable` : ""}`)
         .child(div().size(6).rounded(3).bg(working ? t.working : t.dim)).child(`${working}/${list.length} agents`)
-        .when(needs > 0, el => el.child(div().text_color(t.blocked).child(`· ${needs} needs you`))))
+        .when(needs > 0, el => el.child(div().text_color(t.blocked).child(`· ${needs} needs you`)))))
       .child(div().flex_1())
       .child(div().id("palette").text_color(t.dim).on_click(() => run("app.palette")).child(this.hint(t)));
   }

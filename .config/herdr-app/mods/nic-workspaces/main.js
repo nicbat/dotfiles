@@ -1,14 +1,15 @@
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { spaces, panes, terminals, agents, focused, window, theme, home, exec, hc, readTextFile, run,
-  shared, openOverlay, setAgentOrder, nextCommand } from "herdr";
+  shared, setShared, props, openOverlay, setAgentOrder, nextCommand } from "herdr";
 import { visibleAgents, legacyAttachment } from "./visible-agents.js";
 import * as fs from "fs/promises";
 import { directCodex, codexSession, newBindings } from "./codex-status.js";
 import { workspaceTree, agentOrder } from "./workspace-tree.js";
 import { readAttention } from "./read-attention.js";
-import { draftTargets, applyDrafts } from "./draft-status.js";
+import { draftTargets, applyDrafts, backgroundLabel } from "./draft-status.js";
 import { TabDrag } from "./drag-ui.js";
+import { SlimScrollbar } from "./slim-scrollbar.js";
 
 const art = name => `mods/workspace-chrome/${name}.svg`;
 const perform = actions => actions.forEach(([command, args]) => run(command, args));
@@ -25,6 +26,8 @@ function icon(program, fallback, t, size = 15) {
 
 export default class Workspaces extends View {
   init(_props, cx) {
+    this.scrollbar = new SlimScrollbar();
+    this.scrollbar.activity(cx);
     this.drag = new TabDrag(cx);
     this.folded = saved("folded-spaces");
     this.expanded = saved("expanded-tabs");
@@ -38,7 +41,8 @@ export default class Workspaces extends View {
     cx.timer.every(3000, cx => this.refreshLegacy(cx));
     this.refreshLegacy(cx);
     this.codex = {};
-    this.codexStarts = {};
+    try { this.codexStarts = JSON.parse(localStorage.getItem("codex-starts") ?? "{}"); }
+    catch (_) { this.codexStarts = {}; }
     this.codexBusy = false;
     cx.timer.every(1500, cx => this.refreshCodex(cx));
     this.refreshCodex(cx);
@@ -69,7 +73,7 @@ export default class Workspaces extends View {
     });
   }
 
-  close() { this.drag?.close(); }
+  close() { this.drag?.close(); this.scrollbar?.close(); }
 
   save() {
     localStorage.setItem("folded-spaces", JSON.stringify([...this.folded]));
@@ -113,10 +117,19 @@ export default class Workspaces extends View {
     if (this.codexBusy) return;
     const all = terminals();
     const now = Date.now();
+    let startsChanged = false;
     for (const terminal of all.filter(directCodex)) {
-      if (this.codexStarts[terminal.address]?.pid !== terminal.foreground.pid)
+      if (this.codexStarts[terminal.address]?.pid !== terminal.foreground.pid) {
         this.codexStarts[terminal.address] = { pid: terminal.foreground.pid, seenAt: now };
+        startsChanged = true;
+      }
     }
+    for (const address of Object.keys(this.codexStarts)) {
+      if (!all.some(t => t.address === address && directCodex(t))) {
+        delete this.codexStarts[address]; startsChanged = true;
+      }
+    }
+    if (startsChanged) localStorage.setItem("codex-starts", JSON.stringify(this.codexStarts));
     const sessions = new Set(all.map(codexSession).filter(Boolean));
     const unbound = all.some(t => directCodex(t) && !codexSession(t));
     this.codexBusy = true;
@@ -131,7 +144,7 @@ export default class Workspaces extends View {
             if (record && record.session_id === name.slice(0, -5)) records.push(record);
           } catch (_) { /* No record means unavailable. */ }
         }));
-        for (const binding of newBindings(all, records, this.codexStarts, Date.now()))
+        for (const binding of newBindings(terminals(), records, this.codexStarts, Date.now()))
           await hc(["label", binding.terminal, `herdr.codex.session=${binding.session}`, `herdr.codex.pid=${binding.pid}`]);
       } catch (_) { /* Missing observer directory is expected before the first event. */ }
       finally {
@@ -165,17 +178,19 @@ export default class Workspaces extends View {
     });
   }
 
-  status(status, t) {
-    if (!hasIndicator(status)) return null;
-    if (status === "working") return svg(art("spinner")).size(12).flex_none()
-      .text_color(t.working).spin(900).tooltip("Working");
-    if (status === "blocked") return div().px(5).h(17).flex_none().rounded(4)
-      .bg(t.blocked + "26").text_color(t.blocked).text_size(10).font_semibold()
-      .tooltip("Needs your attention").child("!");
-    if (status === "unknown") return div().w(13).flex_none().text_size(11).text_color(t.muted)
-      .tooltip("Status unavailable: no current native, hook, or source-server status").child("?");
-    return div().size(7).mx(3).flex_none().rounded(4).bg(t.done)
-      .tooltip("Done — unread; viewing the agent clears this dot");
+  status(status, t, id, compact = false) {
+    // Reserve the same end column even when an agent is idle or unavailable.
+    return div().id(`status-${id}`).w(compact ? 13 : 22).h(22).flex_none()
+      .flex().items_center().justify_center()
+      .when(status === "working", el => el.tooltip("Working")
+        .child(svg(art("spinner")).size(12).text_color(t.working).spin(900)))
+      .when(status === "blocked", el => el.tooltip("Needs your attention")
+        .child(div().px(5).h(17).rounded(4).bg(t.blocked + "26")
+          .text_color(t.blocked).text_size(10).font_semibold().child("!")))
+      .when(status === "unknown", el => el.text_size(11).text_color(t.muted)
+        .tooltip("Status unavailable: no current native, hook, or source-server status").child("?"))
+      .when(status === "done", el => el.tooltip("Done — unread; viewing the agent clears this dot")
+        .child(div().size(7).rounded(4).bg(t.done)));
   }
 
   disclosure(id, open, t, action) {
@@ -192,17 +207,25 @@ export default class Workspaces extends View {
 
   workerRows(nodes, t, depth = 0) {
     return nodes.flatMap(node => [h_flex().id(`worker-${node.id}`).h(25).flex_none()
-      .pl(43 + depth * 10).pr(9).gap(7).items_center().rounded(5)
+      .pl(43 + depth * 10).pr(3).gap(7).items_center().rounded(5)
       .hover(el => el.bg(t.hover)).on_click(() => run("terminal.peek", { terminal: node.terminal }))
       .child(icon(node.program, "terminal", t, 12))
       .child(div().flex_1().min_w(0).truncate().text_color(t.muted).text_size(11.5)
         .tooltip(node.title).child(node.title))
-      .when(hasIndicator(node.status), el => el.child(this.status(node.status, t))), ...this.workerRows(node.children, t, depth + 1)]);
+      .child(this.status(node.status, t, `worker-${node.id}`)), ...this.workerRows(node.children, t, depth + 1)]);
+  }
+
+  backgroundBadge(id, shells, unknown, t) {
+    return h_flex().id(`background-${id}`).h(17).flex_none().gap(3).items_center()
+      .text_size(10.5).text_color(t.ansi3)
+      .tooltip(`${backgroundLabel(shells, unknown)} reported by live agent footers.${unknown ? " + means another count is unavailable." : ""}`)
+      .child(svg(art("terminal")).size(11).flex_none())
+      .child(`${shells}${unknown ? "+" : ""}`);
   }
 
   paneRows(pane, t) {
     const open = this.workers.has(pane.id);
-    const row = h_flex().id(`pane-${pane.id}`).h(27).flex_none().pl(8).pr(9).gap(7)
+    const row = h_flex().id(`pane-${pane.id}`).h(27).flex_none().pl(8).pr(3).gap(7)
       .items_center().rounded(6).when(pane.focused, el => el.bg(t.accent + "1f"))
       .hover(el => el.bg(pane.focused ? t.accent + "2b" : t.hover))
       .on_click(() => { if (!this.drag?.blockClick()) perform(pane.actions); })
@@ -213,7 +236,8 @@ export default class Workspaces extends View {
       .child(div().flex_1().min_w(0).truncate().text_size(12)
         .text_color(pane.focused ? t.accent : t.muted).tooltip(pane.title).child(pane.title))
       .when(pane.draft, el => el.child(this.draftBadge(1, t)))
-      .when(hasIndicator(pane.status), el => el.child(this.status(pane.status, t)));
+      .when(pane.shells > 0, el => el.child(this.backgroundBadge(pane.id, pane.shells, 0, t)))
+      .child(this.status(pane.status, t, `pane-${pane.id}`));
     return [this.drag ? this.drag.row(row, "pane", pane.pane, "vertical", t) : row,
       ...(open ? this.workerRows(pane.children, t) : [])];
   }
@@ -223,7 +247,7 @@ export default class Workspaces extends View {
     const hasWorkers = Boolean(tab.single?.children.length);
     const open = split ? this.expanded.has(tab.id) : this.workers.has(tab.single?.id);
     const on = space.active && tab.active;
-    const row = h_flex().id(`tab-${tab.id}`).h(29).flex_none().pl(16).pr(9).gap(7)
+    const row = h_flex().id(`tab-${tab.id}`).h(29).flex_none().pl(16).pr(3).gap(7)
       .items_center().rounded(6).when(on, el => el.bg(t.accent + "1f"))
       .hover(el => el.bg(on ? t.accent + "2b" : t.hover))
       .on_click(() => { if (!this.drag?.blockClick()) perform(tab.actions); })
@@ -238,7 +262,8 @@ export default class Workspaces extends View {
       .when(split, el => el.child(div().flex_none().text_color(t.dim).text_size(10.5)
         .tooltip(`${tab.leaves.length} panes · ${tab.agentCount} agents`).child(String(tab.leaves.length))))
       .when(tab.draftCount > 0 && (!split || !open), el => el.child(this.draftBadge(tab.draftCount, t)))
-      .when(hasIndicator(tab.status), el => el.child(this.status(tab.status, t)));
+      .when(tab.shells > 0 && (!split || !open), el => el.child(this.backgroundBadge(tab.id, tab.shells, tab.shellUnknown, t)))
+      .child(this.status(tab.status, t, `tab-${tab.id}`));
     const draggable = this.drag ? this.drag.row(row, "tab", tab.id, "vertical", t) : row;
     if (!open) return [draggable];
     if (!split) return [draggable, ...this.workerRows(tab.single.children, t)];
@@ -249,12 +274,17 @@ export default class Workspaces extends View {
 
   spaceRows(space, t, narrow, index) {
     const folded = this.folded.has(space.id);
+    const hovered = this.hoveredSpace === space.id;
     const color = shared("space.colors")?.[space.id] ?? "ansi6";
     const fill = color.startsWith("#") ? color : t[color];
     const detail = `${space.tabs.length} tabs · ${space.paneCount} panes · ${space.agentCount} agents`;
-    const row = h_flex().id(`space-${space.id}`).h(33).flex_none().px(narrow ? 3 : 6).gap(6)
-      .items_center().rounded(6).when(space.active, el => el.bg(t.selected))
+    const row = h_flex().id(`space-${space.id}`).h(33).flex_none().pl(narrow ? 3 : 6).pr(3).gap(6)
+      .items_center().rounded(6).when(space.active && (folded || narrow), el => el.bg(t.selected))
       .hover(el => el.bg(t.hover)).tooltip(`${space.name}${space.machine ? ` · ${space.machine}` : ""}\n${detail}`)
+      .on_hover((over, cx) => {
+        const next = over ? space.id : this.hoveredSpace === space.id ? null : this.hoveredSpace;
+        if (next !== this.hoveredSpace) { this.hoveredSpace = next; cx.notify(); }
+      })
       .on_click(() => run("space.select", { id: space.id }))
       .on_mouse_down("right", () => this.menu("space", { id: space.id }))
       .when(!narrow, el => el.child(this.disclosure(`fold-${space.id}`, !folded, t,
@@ -263,10 +293,20 @@ export default class Workspaces extends View {
         .text_color("#ffffff").text_size(10).font_semibold()
         .child(narrow ? String(index + 1) : [...space.name][0]?.toUpperCase() || "?"))
       .when(!narrow, el => el.child(div().flex_1().min_w(0).truncate().text_size(12).font_semibold()
-        .text_color(t.foreground).child(space.name))
-        .child(div().flex_none().text_size(10).text_color(t.dim).tooltip(detail).child(String(space.agentCount))))
+        .text_color(t.foreground).child(space.name)))
       .when(space.draftCount > 0 && (folded || narrow), el => el.child(this.draftBadge(space.draftCount, t, narrow)))
-      .when(hasIndicator(space.status), el => el.child(this.status(space.status, t)));
+      .when(folded && !narrow && space.shells > 0, el => el.child(this.backgroundBadge(space.id, space.shells, space.shellUnknown, t)))
+      .when(!narrow, el => el.child(this.status(space.status, t, `space-${space.id}`))
+        .child(div().id(`space-action-${space.id}`).size(22).flex_none().rounded(5)
+          .flex().items_center().justify_center().text_size(10).text_color(t.dim)
+          .tooltip(hovered ? `New tab in ${space.name}` : detail)
+          .when(hovered, el => el.hover(el => el.bg(t.hover).text_color(t.foreground))
+            .on_click((_event, cx) => {
+              cx.stop_propagation();
+              run("tab.new", { space: space.id });
+            }).child(svg(art("plus")).id(`space-plus-${space.id}`).size(12)))
+          .when(!hovered, el => el.child(String(space.agentCount)))))
+      .when(narrow && hasIndicator(space.status), el => el.child(this.status(space.status, t, `space-${space.id}`, true)));
     return [row, ...(!folded && !narrow ? space.tabs.flatMap(tab => this.tabRows(space, tab, t)) : [])];
   }
 
@@ -296,21 +336,27 @@ export default class Workspaces extends View {
     setAgentOrder(agentOrder(tree));
     const narrow = (this.width ?? 268) < 160;
     const count = tree.reduce((n, s) => n + s.agentCount, 0);
+    if (shared("nic.sidebar.workspaces-count") !== count) setShared("nic.sidebar.workspaces-count", count);
     const root = v_flex().id("workspaces-root").size_full().min_h(0).bg(t.chrome)
       .on_size_change((size, cx) => {
         const was = (this.width ?? 268) < 160;
         this.width = size.width;
+        if (props()?.section) {
+          const key = `nic.sidebar.height.${props().section}`;
+          if (shared(key) !== size.height + 30) setShared(key, size.height + 30);
+        }
         if (was !== (this.width < 160)) cx.notify();
       })
-      .child(h_flex().h(29).flex_none().pl(narrow ? 4 : 16).pr(10).gap(6).items_center()
+      .when(!props()?.hideHeader, el => el.child(h_flex().h(29).flex_none().pl(narrow ? 4 : 16).pr(12).gap(6).items_center()
         .text_size(11).text_color(t.dim)
         .when(!narrow, el => el.child(div().flex_1().child("Workspaces"))
           .child(div().tooltip("Open recognized agent sessions").child(`${count} agents`)))
         .child(div().id("new-space").size(22).flex_none().rounded(5).flex().items_center().justify_center()
           .hover(el => el.bg(t.hover).text_color(t.foreground)).tooltip("New space")
-          .on_click(() => run("space.new")).child(svg(art("plus")).size(12))))
-      .child(v_flex().flex_1().min_h(0).px(narrow ? 4 : 7).pb(10)
-        .overflow_y_scrollbar().children(tree.flatMap((space, i) => this.spaceRows(space, t, narrow, i))));
+          .on_click(() => run("space.new")).child(svg(art("plus")).size(12)))))
+      .child((this.scrollbar ??= new SlimScrollbar()).wrap(v_flex().id("workspace-list-content")
+        .w_full().flex_none().pl(narrow ? 4 : 7).pr(9).pb(10)
+        .children(tree.flatMap((space, i) => this.spaceRows(space, t, narrow, i))), "workspace-list"));
     return this.drag ? this.drag.root(root) : root;
   }
 }

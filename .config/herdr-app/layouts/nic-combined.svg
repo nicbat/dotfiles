@@ -2,15 +2,20 @@
   <rect width="400" height="250" rx="8" fill="#16191e"/>
   <rect width="118" height="250" rx="8" fill="#20242b"/>
   <g fill="#9ca7b7" font-family="sans-serif" font-size="9">
-    <text x="12" y="22">Workspaces</text>
+    <text x="12" y="22">▾ Workspaces</text>
+    <circle cx="87" cy="19" r="2" fill="#d4b078"/><text x="93" y="22" font-size="7">2/5</text>
     <text x="12" y="51" fill="#d9e1eb">▾ Project</text>
     <text x="26" y="73">Agent task</text><circle cx="102" cy="70" r="3" fill="#8cac81"/>
     <text x="26" y="95">Shell</text>
     <text x="26" y="117">▾ Review · 2 panes</text>
     <text x="37" y="139">Code review</text><circle cx="102" cy="136" r="3" fill="#d4b078"/>
     <text x="37" y="161">Notes</text>
-    <text x="12" y="192" fill="#d9e1eb">▸ Another project</text>
+    <text x="12" y="183">▾ Todo</text><text x="89" y="183" font-size="7">1 open</text>
+    <text x="19" y="225">□ Follow up</text>
   </g>
+  <path d="M0 169h118" stroke="#38414e"/>
+  <rect x="9" y="191" width="100" height="19" rx="3" fill="#16191e" stroke="#38414e"/>
+  <text x="15" y="203" fill="#9ca7b7" font-family="sans-serif" font-size="8">Add a todo…</text>
   <rect x="125" y="9" width="83" height="19" rx="4" fill="#303843"/>
   <rect x="125" y="36" width="266" height="193" rx="6" fill="#101318" stroke="#536987"/>
   <g stroke="#586372" stroke-width="2" stroke-linecap="round">

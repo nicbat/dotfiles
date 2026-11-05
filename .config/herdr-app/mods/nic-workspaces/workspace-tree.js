@@ -45,6 +45,7 @@ export function workspaceTree(spaces, panes, terminals, agents, home = "") {
           p.title || program?.name || p.mod || "Pane";
         return { ...p, id: p.pane, title, program, agent: Boolean(agent),
           draft: agent?.draft === true,
+          shells: agent?.shells ?? null, shellSupported: agent?.shellSupported === true,
           completion_key: agent?.completion_key, seq: agent?.seq,
           status: agent?.status ?? null, children,
           actions: activation(space.id, tab.id, p.pane) };
@@ -55,11 +56,15 @@ export function workspaceTree(spaces, panes, terminals, agents, home = "") {
         title: tab.name && !/^\d+$/.test(tab.name) ? tab.name : single?.title || `Tab ${tab.index ?? tab.name}`,
         agentCount: nodes.filter(n => n.agent).length,
         draftCount: nodes.filter(n => n.agent && n.draft).length,
+        shells: nodes.reduce((n, p) => n + (p.shells ?? 0), 0),
+        shellUnknown: nodes.filter(p => p.shellSupported && p.shells === null).length,
         status: urgent([tab.status, ...nodes.map(n => n.status)]),
         actions: activation(space.id, tab.id, single?.pane) };
     });
     return { ...space, tabs, agentCount: tabs.reduce((n, t) => n + t.agentCount, 0),
       draftCount: tabs.reduce((n, t) => n + t.draftCount, 0),
+      shells: tabs.reduce((n, t) => n + t.shells, 0),
+      shellUnknown: tabs.reduce((n, t) => n + t.shellUnknown, 0),
       paneCount: tabs.reduce((n, t) => n + t.leaves.length, 0),
       status: urgent([space.status, ...tabs.map(t => t.status)]) };
   });
