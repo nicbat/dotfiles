@@ -28,7 +28,7 @@ const modules = {
     export const focused = () => test.fixture.focus;
     export const window = () => ({ active: test.fixture.active, platform: "macos", titlebar: "native" });
     export const settings = () => ({ zoom: 1 });
-    export const layout = () => null;
+    export const layout = () => test.fixture.layout ?? null;
     export const theme = () => new Proxy({}, { get: (_o, key) => key === "popover" ? "#eeffee" : key === "selected" ? "#00000022" : "#556677" });
     export const home = () => "/home/test";
     export const shared = key => test.shared[key] ?? null;
@@ -66,6 +66,22 @@ function setup() {
   const bar = new Tabs(), side = new Workspaces(); bar.init(null, cx); side.init(null, cx); side.expanded.add("split");
   return { bar, side, cx, mock };
 }
+
+test("PR toolbar button selects the shared right panel and remembers its choice alongside Files and Changes", () => {
+  const { bar, cx, mock } = setup();
+  const body = { id: "panel-body", active: "files", children: [{ id: "files" }, { id: "changes" }, { id: "prs" }] };
+  const panel = { id: "panel", hidden: true, children: [body] };
+  mock.fixture.layout = { id: "root", children: [panel] };
+  mock.shared["workspace.panels"] = ["files", "changes"];
+  let root = bar.render();
+  assert.ok(find(root, "panel-files")); assert.ok(find(root, "panel-changes"));
+  find(root, "panel-prs").methods.on_click[0](null, cx);
+  assert.deepEqual(mock.actions.slice(-2), [["layout.select", { stack: "panel-body", child: "prs" }], ["layout.show", { id: "panel" }]]);
+  panel.hidden = false; body.active = "prs"; root = bar.render();
+  assert.equal(JSON.parse(mock.storage.panels).s, "prs");
+  find(root, "panel-prs").methods.on_click[0](null, cx);
+  assert.deepEqual(mock.actions.at(-1), ["layout.hide", { id: "panel" }]);
+});
 const event = (x, y = 15, shift = false, origin = 0, count = 1) => ({ position: { x: x + origin, y },
   local_position: { x, y }, bounds: { x: origin, y: 0, width: 100, height: 30 }, modifiers: { shift }, click_count: count });
 const fire = (row, handler, e, cx) => row.methods[handler][handler.startsWith("on_mouse_down:") || handler.startsWith("on_mouse_up:") ? 1 : 0](e, cx);

@@ -43,7 +43,7 @@ export default class SidebarSection extends View {
       .child(h_flex().id("section-toggle").flex_1().min_w(0).h_full().gap(6).items_center()
         .child(svg(art(collapsed ? "chevron-right" : "chevron-down")).size(10).flex_none())
         .when(!narrow, el => el.child(div().flex_1().min_w(0).truncate().font_semibold().child(p.title ?? "Section"))
-          .child(h_flex().id("section-count").flex_none().gap(4).items_center().text_size(10).text_color(t.dim)
+          .child(h_flex().id("section-count").flex_none().gap(4).items_center().text_size(10).text_color(t.muted)
             .when(Boolean(activity), el => el.tooltip(detail).child(div().size(6).flex_none().rounded(3)
               .bg(activity.needs ? t.blocked : activity.working ? t.working : t.dim)))
             .child(label))))

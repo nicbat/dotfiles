@@ -141,6 +141,13 @@
                       "content": {
                         "mod": "changes"
                       }
+                    },
+                    {
+                      "id": "prs",
+                      "type": "block",
+                      "content": {
+                        "mod": "nic-prs"
+                      }
                     }
                   ],
                   "active": "files"

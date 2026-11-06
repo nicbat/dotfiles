@@ -28,7 +28,7 @@ const modules = {
     export const Checkbox = { new: globalThis.todoViewTest.element };
     export const Scrollbar = { vertical: globalThis.todoViewTest.element };`,
   "herdr": `const fixture = globalThis.todoViewTest;
-    export const theme = () => new Proxy({}, { get: () => "#556677" });
+    export const theme = () => fixture.palette ?? new Proxy({}, { get: () => "#556677" });
     export const props = () => ({ section: "todo-section" });
     export const shared = key => fixture.shared[key];
     export const setShared = (key, value) => { fixture.shared[key] = value; };`
@@ -48,6 +48,7 @@ function start(fresh = true) {
   if (fresh) {
     storage = new Map();
     globalThis.todoViewTest.shared = {};
+    globalThis.todoViewTest.palette = null;
     globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
   }
   const view = new Todo();
@@ -150,4 +151,36 @@ test("layout callbacks omit a fitting scrollbar and add/remove it as content or 
   assert.ok(lookup(root, "todo-list-scrollbar"));
   lookup(root, "todo-list-viewport").methods.on_size_change[0]({ height: 150 }, cx);
   assert.equal(lookup(view.render(), "todo-list-scrollbar"), undefined);
+});
+
+test("theme changes repaint open, completed and editing todos without touching saved items or draft", () => {
+  const view = start();
+  add(view, "Open todo"); add(view, "Completed todo"); add(view, "Editing todo");
+  const [open, done, editing] = view.items;
+  lookup(view.render(), `check-${done.id}`).items[0].methods.on_change[0](true, cx);
+  view.edit(editing, cx);
+  view.addInput.set_value("Keep this draft"); view.addInput.handlers.change({}, cx);
+  const saved = [...storage];
+  const roles = ["chrome", "surface", "hover", "input", "accent", "accent_foreground", "foreground", "muted", "dim", "blocked"];
+  for (const [paper, ink] of [["#17191d", "#eeeeef"], ["#c0c0c0", "#000000"]]) {
+    const palette = { ...Object.fromEntries(roles.map(role => [role, paper])), background: "#010203", foreground: ink, muted: ink };
+    globalThis.todoViewTest.palette = palette;
+    const root = view.render();
+    assert.deepEqual(lookup(root, `title-${open.id}`).methods.text_color, [ink]);
+    assert.deepEqual(lookup(root, `title-${done.id}`).methods.text_color, [ink]);
+    assert.ok(lookup(root, `save-${editing.id}`));
+    const colors = [];
+    const visit = node => {
+      if (typeof node === "string") return;
+      for (const method of ["bg", "text_color", "border_color"]) if (node.methods[method]) colors.push(...node.methods[method]);
+      if (node.methods.hover) visit(node.methods.hover[0](element()));
+      node.items.forEach(visit);
+    };
+    visit(root);
+    assert.ok(colors.every(color => Object.values(palette).includes(color)));
+    assert.ok(!colors.includes(palette.background), "terminal background must not paint Todo inputs");
+    assert.deepEqual([...storage], saved);
+    assert.equal(view.editing, editing.id);
+    assert.equal(view.addInput.value(), "Keep this draft");
+  }
 });

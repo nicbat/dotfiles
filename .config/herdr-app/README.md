@@ -42,6 +42,8 @@ staged and unstaged dotfile changes.
   tooltip. Herdr scopes imports to each mod; keep its local `visible-agents.js`
   and `codex-status.js` copies synchronized with the combined sidebar.
 - `mods/nic-auto-title`: tab titles from the active terminal's task.
+- `mods/nic-prs`: authored PRs, GitHub host selection, personal folders and retained history
+  in the right-hand panel. Requires `gh` access to `github.rbx.com`.
 - `mods/nic-which-key`: F1 and Ctrl+B Space keybinding guide.
 - `~/.local/share/noctalia/plugins/herdr`: local App/TUI monitoring plugin,
   core fallback, animated status wheels, and tests.
@@ -179,6 +181,64 @@ Needs you, and `?` remains Status unavailable. This applies to the combined
 sidebar; `nic-main` retains its existing behavior. All personal status readers
 include the Codex hook reader. The shared counter uses the raw working status,
 independent of the sidebar's completion/read presentation.
+
+## PR panel
+
+Click **PRs** beside Files and Changes in either personal layout. The three
+views share the resizable right-hand panel, whose visible choice is remembered
+per workspace. The PR list and its folders are global across workspaces and
+both personal layouts.
+
+The panel reads your authored PRs through the installed `gh` CLI. Click the
+host beneath the title to switch between **github.rbx.com** and **github.com**
+when both are signed in. Available hosts come from `gh auth status`; each API
+request explicitly targets the selected host. A new installation defaults to
+github.com when available; existing enterprise organization keeps the enterprise
+selection if that host is signed in. The choice is remembered on this computer,
+so the same dotfiles work on a personal machine with only github.com access.
+After signing into another host with `gh auth login`, click the refresh icon
+to update the host choices. **Open** is the default filter; **Merged**, **Closed** (without merging)
+and **All** show retained history in the same folders. Rows show repository,
+number, title and review/check status, or the merge/close date. Click the title
+to open GitHub. Search matches titles, repositories and PR numbers.
+
+Type a name in **New folder…**, then Enter or +. New PRs enter **Unfiled**.
+Click a folder header to collapse it; **···** offers rename, up/down ordering
+and delete. Deleting a folder returns its PRs to Unfiled. Hover a PR to reveal
+its centered **···** button, then choose **Move to folder** to open the picker.
+The button remains visible while its menu or picker is open. Click outside the
+menu to dismiss it; Escape closes menus, folder editing or the picker.
+One PR belongs to one flat folder. Titles underline on hover without a tooltip;
+the repository/PR line uses a larger type size for readability.
+
+PRs refresh every minute after the panel first opens, including while hidden.
+The header's refresh icon updates immediately and spins while fetching.
+The first fetch loads every open PR and the 50 most recently updated historical PRs. **Load older PRs** pages through the
+remaining history when a history filter is selected. Records and assignments
+remain saved when PRs merge, close or reopen. A missing search result is never
+treated as a confirmed merge; inaccessible records retain their last state
+and show Unavailable. Failed refreshes keep the cache and show an error.
+
+Each host has separate folders, selected filter and cached PR metadata in
+Herdr's `shared.json`, excluded from dotfiles backup. The original enterprise
+store stays at `nic.prs.v1` without migration; github.com uses
+`nic.prs.v1:github.com`; `nic.prs.host` remembers the local selection.
+This follows across layouts on this computer, without syncing between machines.
+Unrecognized saved data and account mismatches are retained without overwriting
+the existing organization. GitHub mutations and agent launches are outside this
+panel's scope.
+
+Validate the `nic-prs/*.test.mjs` and `nic-auto-title/*.test.mjs` suites, then
+native-check both mods and view a fresh screenshot. Supported commands include
+`herdr-app do nic-prs.refresh`, `nic-prs.older` and the `nic-prs.open`,
+`nic-prs.merged`, `nic-prs.closed`, `nic-prs.all` filter commands while visible.
+`nic-prs.github` and `nic-prs.enterprise` select a signed-in host.
+
+PRs and Todo read the current theme on each render. Panels and inputs use UI
+surface colors, separately from a theme's terminal background; SVGs inherit
+their text color. Secondary text uses the theme's muted ink. PR status labels
+keep their status/ANSI ink when it has sufficient contrast against the panel,
+otherwise using the theme's foreground; status dots retain their original ink.
 
 ## Move to tab
 
