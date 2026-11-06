@@ -151,7 +151,8 @@ export default class PullRequests extends View {
   row(pr, t) {
     const attention = pr.state === "OPEN" && !pr.isDraft &&
       (pr.review === "CHANGES_REQUESTED" || ["FAILURE", "ERROR"].includes(pr.checks) || pr.mergeable === "CONFLICTING");
-    const color = pr.state === "MERGED" ? t.ansi5 : pr.state === "CLOSED" ? t.muted : attention ? t.blocked : t.accent;
+    const color = pr.state === "MERGED" ? t.ansi5 : pr.state === "CLOSED" ? t.muted :
+      pr.isDraft ? t.ansi3 : attention ? t.blocked : t.accent;
     const folder = this.state.assignments[pr.key] ?? null;
     return v_flex().id(`pr-${pr.key}`).flex_none().w_full().px(9).py(8).gap(4).rounded(6)
       .hover(el => el.bg(t.hover))
@@ -176,6 +177,10 @@ export default class PullRequests extends View {
                 .child(svg("mods/nic-prs/more.svg").size(18)))
               .when(this.prMenu === pr.key, el => el.content(v_flex().w(168).p(4).rounded(6)
                 .bg(t.popover).border_1().border_color(t.border).role("menu").accessibility_label("PR actions")
+                .child(this.button(`copy-${pr.key}`, "Copy PR link", cx => {
+                  cx.write_to_clipboard(pr.url);
+                  this.prMenu = null; cx.notify();
+                }, t).w_full().h(30).justify_start().text_size(12).role("menu_item"))
                 .child(this.button(`move-${pr.key}`, "Move to folder", cx => {
                   this.prMenu = null; this.moving = pr.key; cx.notify();
                 }, t).w_full().h(30).justify_start().text_size(12).role("menu_item"))))))))
