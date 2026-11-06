@@ -104,20 +104,29 @@ an agent needs attention, working while agents work, otherwise dim. Its tooltip
 includes working, total, needs-attention and unavailable counts. There is no
 duplicate agent counter at the bottom of this layout.
 
-Type in **Add a todo…** and press Enter (or +). Check an item to complete it;
-completed items stay muted below open ones and can be reopened. Click a title
-to edit; a checkmark replaces the row's × while editing. Enter/check saves and
-Escape cancels. The row's ×
-deletes it, with **Undo** for the latest deletion. The header counts open items.
-One list follows you across Spaces, and unfinished add text survives reloads.
-No agent changes the list automatically.
+The Todo section shows one `#` heading of a Markdown note, by default
+`~/Documents/Obsidian Vault/Todo List.md`, so Obsidian Sync carries it between
+devices. `##` subheadings under that heading are labels: they show as groups, and
+the All/label chips filter to unlabeled items plus one label. Click the
+**Note · Heading** line to pick another `#` heading or another note path; the
+choice is per machine (`nic.todo.source` in Herdr's excluded `shared.json`).
 
-`mods/nic-todo` uses local storage for entries and add text. Herdr stores it under
-`data/nic-todo/`; it is personal data, excluded from dotfiles backup, not synced
-between computers. Malformed or unknown-version saved entries are kept intact
-and editing is disabled until the data is repaired. Undo is available until the
-next deletion or mod/app reload. The narrow sidebar rail retains the section
-chevrons but hides todo entry and rows; widen it to edit the list.
+Type in **Add a todo…** and press Enter (or +); new items go under the heading,
+unlabeled. Checking an item moves it to `# Archive` → `## <heading>` with
+` ✅ YYYY-MM-DD`; the collapsed **Archive** group lists those (and items ticked in
+place in Obsidian) and unchecking returns an item to its heading. Click a title
+to edit; a checkmark replaces the row's × while editing. Enter/check saves and
+Escape cancels. The row's × deletes it, with **Undo** for the latest deletion.
+The header counts open items under the heading. Unfinished add text survives
+reloads. No agent changes the list automatically.
+
+`mods/nic-todo/todo-file.js` edits only the lines involved; other text, nested
+lines, front matter and code blocks are kept. Saves use `writeTextFile` with the
+text last read, so an edit arriving from Obsidian is never overwritten: the note
+is re-read and the change applied again, or, if that item itself changed, the
+list reloads with a message. The note's folder is watched for changes. Undo
+lasts until the next deletion or reload. The narrow sidebar rail retains the
+section chevrons but hides todo entry and rows; widen it to edit the list.
 
 `mods/nic-sidebar-section` provides reusable section headers. Each is a column
 with a fixed 30px header and a body block; their parent column owns native
