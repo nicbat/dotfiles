@@ -50,6 +50,10 @@ export default class Workspaces extends View {
     this.draftsBusy = false;
     cx.timer.every(3000, cx => this.refreshDrafts(cx));
     this.refreshDrafts(cx);
+    // Agents can't run ps, so map each terminal's processes and session for them.
+    this.mapBusy = false;
+    cx.timer.every(10000, cx => this.refreshMap(cx));
+    this.refreshMap(cx);
     cx.spawn(async cx => {
       for (;;) {
         const command = await nextCommand();
@@ -79,6 +83,16 @@ export default class Workspaces extends View {
     localStorage.setItem("folded-spaces", JSON.stringify([...this.folded]));
     localStorage.setItem("expanded-tabs", JSON.stringify([...this.expanded]));
     localStorage.setItem("expanded-workers", JSON.stringify([...this.workers]));
+  }
+
+  refreshMap(cx) {
+    if (this.mapBusy) return;
+    this.mapBusy = true;
+    cx.spawn(async () => {
+      try { await exec("python3", [`${home()}/.local/bin/herdr-agent.py`, "map"]); }
+      catch (_) { /* whoami and last report a stale map. */ }
+      finally { this.mapBusy = false; }
+    });
   }
 
   refreshDrafts(cx) {
@@ -202,7 +216,7 @@ export default class Workspaces extends View {
   }
 
   menu(tab, target) {
-    openOverlay({ mod: "nic-menu", kind: "popup", width: 280, height: 330, props: { tab, target } });
+    openOverlay({ mod: "nic-menu", kind: "popup", width: 280, height: 362, props: { tab, target } });
   }
 
   workerRows(nodes, t, depth = 0) {

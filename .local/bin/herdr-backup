@@ -20,6 +20,12 @@ paths=(
   .local/bin/test_herdr_move_terminal.py
   .local/bin/herdr-unmerge-tab.py
   .local/bin/test_herdr_unmerge_tab.py
+  .local/bin/herdr-agent.py
+  .local/bin/test_herdr_agent.py
+  .local/bin/herdr-whoami
+  .local/bin/herdr-last
+  .local/bin/herdr-ask
+  .local/bin/herdr-tell
   .local/bin/herdr-backup
 )
 

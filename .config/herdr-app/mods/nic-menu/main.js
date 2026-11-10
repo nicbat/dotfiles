@@ -23,6 +23,34 @@ async function checkout(folder, on) {
   return common.stdout.trim() === `${top.stdout.trim()}/.git` ? "main" : "linked";
 }
 
+// What to paste when asking one agent to reach another: its address, where it
+// is now (space / tab), and its live folder. Moving a pane keeps the address.
+function reference(term, pane) {
+  const space = spaces().find((s) => s.tabs?.some((c) => c.id === pane?.tab));
+  const tab = space?.tabs.find((c) => c.id === pane?.tab);
+  const where = space && tab ? `${space.name} / ${tab.name}` : term.where;
+  const folder = (pane?.cwd || term.foreground?.cwd || term.cwd || "").replace(home(), "~");
+  return [`Herdr agent ${term.address} (hc address)`, where && `— ${where}`, folder && `(${folder})`].filter(Boolean).join(" ");
+}
+
+// Agents whose transcripts herdr-agent.py can read.
+const SHAREABLE = new Set(["claude-code", "codex", "pi"]);
+
+function agentItems(term, pane) {
+  return [
+    [`Copy address (${term.address})`, "copy", { text: term.address }],
+    ["Copy agent reference", "copy", { text: reference(term, pane) }],
+    ...(SHAREABLE.has(term.agent) ? [["Share last response", "share-last", { terminal: term.address }]] : []),
+  ];
+}
+
+// A tab of one terminal stands for it in the lists, so its menu offers the same.
+function tabAgentItems(tab) {
+  const leaves = panes().filter((x) => x.tab === tab);
+  const term = leaves.length === 1 && terminals().find((t) => t.address === leaves[0].terminal);
+  return term ? agentItems(term, leaves[0]) : [];
+}
+
 function items(p, git) {
   p = p ?? {};
   const tg = p.target ?? {};
@@ -46,6 +74,7 @@ function items(p, git) {
         ...unmerge,
         ...(term
           ? [
+              ...agentItems(term, panes().find((x) => x.pane === tg.pane)),
               toProgram
                 ? ["Use Herdr right-click menu", "terminal.right_click", { terminal: term.address, to: "menu" }]
                 : ["Send right-clicks to pane", "terminal.right_click", { terminal: term.address, to: "program" }],
@@ -61,6 +90,7 @@ function items(p, git) {
         ["New tab", "tab.new", { space: tg.space }],
         ...move,
         ...unmerge,
+        ...tabAgentItems(tg.id),
         ["Close", "tab.close", { id: tg.id }],
       ];
     case "space":
@@ -132,8 +162,23 @@ export default class Menu extends View {
       });
       return;
     }
+    if (it[1] === "share-last") {
+      closeOverlay(props()?.overlay);
+      cx.spawn(async (cx) => {
+        try {
+          const reply = await exec("python3", [`${home()}/.local/bin/herdr-agent.py`, "last", it[2].terminal, "--write", "--json"]);
+          if (reply.code !== 0) throw new Error(reply.stderr.replace(/^herdr-agent: /, "").trim() || "No response found");
+          const result = JSON.parse(reply.stdout);
+          cx.write_to_clipboard(result.line);
+          const notes = [!result.verified && "not seen on its screen, check it", result.earlier_turn && "its previous turn; it's working"].filter(Boolean);
+          notify({ title: "Copied last response", body: result.line + (notes.length ? ` (${notes.join("; ")})` : ""), level: result.verified ? "info" : "warning" });
+        } catch (error) { notify({ title: "Could not share last response", body: String(error.message ?? error), level: "error" }); }
+      });
+      return;
+    }
     closeOverlay(props()?.overlay);
-    if (it[1] === "move-to-tab") openOverlay({ mod: "nic-menu", kind: "dialog", width: 620, height: 480, props: { ...it[2], movePicker: true } });
+    if (it[1] === "copy") { cx.write_to_clipboard(it[2].text); notify({ title: "Copied", body: it[2].text }); }
+    else if (it[1] === "move-to-tab") openOverlay({ mod: "nic-menu", kind: "dialog", width: 620, height: 480, props: { ...it[2], movePicker: true } });
     else if (it[1] === "worktree") openOverlay({ mod: "worktree", kind: "dialog", ...(it[2].action === "open" ? { width: 560, height: 480 } : { width: 440, height: 260 }), props: it[2] });
     else run(it[1], it[2]);
   }
