@@ -132,3 +132,15 @@ export function statusText(pr) {
   if (pr.unavailable) parts.push("Unavailable");
   return parts.join(" · ");
 }
+export const REVIEW_SPACE = "pr-review";
+// Run the reviewpr shell function (~/.zshrc) in a new tab of the local pr-review space, creating the space if needed.
+export function reviewLaunch(text, spaces, home) {
+  const prompt = text.trim();
+  if (!prompt) return null;
+  const pull = prompt.match(/\/([^/\s]+)\/pull\/(\d+)/);
+  const name = pull ? `Review ${pull[1]} #${pull[2]}` : `Review: ${cleanName(prompt).slice(0, 40)}`;
+  const folder = `${home}/Planning/pr-review`, argv = ["zsh", "-ic", 'reviewpr "$1"', "reviewpr", prompt];
+  const space = spaces.find(item => item.name === REVIEW_SPACE && !item.machine);
+  return space ? ["tab.new", { space: space.id, name, folder, argv }]
+    : ["space.new", { name: REVIEW_SPACE, tab: name, folder, argv, machine: "" }];
+}

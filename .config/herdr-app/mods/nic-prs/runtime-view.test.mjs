@@ -25,13 +25,18 @@ const modules = {
   "gpui-kit": "export class View {}; export const div = globalThis.prViewTest.element; export const svg = div;",
   "gpui-base": `export const v_flex = globalThis.prViewTest.element; export const h_flex = v_flex;
     export const InputState = { new: globalThis.prViewTest.input }; export const Input = { new: v_flex };
+    export const TextareaState = { new: options => Object.assign(globalThis.prViewTest.input(options), { set_auto_grow() {} }) };
+    export const Textarea = { new: v_flex };
     export const Popover = { new: id => v_flex().id(id) };`,
   "herdr": `const mock = globalThis.prViewTest;
     export const theme = () => mock.palette ?? new Proxy({}, { get: () => "#556677" });
     export const shared = key => mock.shared[key];
     export const setShared = (key, value) => { mock.shared[key] = value; };
     export const exec = (...args) => mock.network(...args);
-    export const nextCommand = () => new Promise(() => {});`
+    export const nextCommand = () => new Promise(() => {});
+    export const run = (...args) => { mock.runs.push(args); return null; };
+    export const spaces = () => mock.spaces ?? [];
+    export const home = () => "/Users/me";`
 };
 registerHooks({
   resolve(specifier, context, next) { return specifier in modules ? { url: `prs-test:${specifier}`, shortCircuit: true } : next(specifier, context); },
@@ -56,7 +61,7 @@ const page = nodes => ({ code: 0, stdout: JSON.stringify({ data: { viewer: { log
   pullRequests: { nodes, totalCount: nodes.length, pageInfo: { endCursor: null, hasNextPage: false } } } } }) });
 async function start(fresh = true) {
   const mock = globalThis.prViewTest;
-  if (fresh) Object.assign(mock, { palette: null, shared: { [HOST_STORE]: HOST }, jobs: [], opened: [], timers: [], network: async (_program, args) => args[0] === "auth" ? { code: 0, stdout: JSON.stringify([{ host: HOST, login: "nbatchelder" }, { host: "github.com", login: "nicbat" }]) } : page([]) });
+  if (fresh) Object.assign(mock, { palette: null, shared: { [HOST_STORE]: HOST }, runs: [], spaces: [], jobs: [], opened: [], timers: [], network: async (_program, args) => args[0] === "auth" ? { code: 0, stdout: JSON.stringify([{ host: HOST, login: "nbatchelder" }, { host: "github.com", login: "nicbat" }]) } : page([]) });
   const cx = { notify() {}, stop_propagation() {}, focus_handle: () => ({ focus() {} }),
     open_url: url => mock.opened.push(url), spawn: job => mock.jobs.push(job), timer: { every: (_ms, job) => mock.timers.push(job) } };
   const view = new PRs(); view.init({}, cx);
@@ -254,4 +259,28 @@ test("theme changes repaint an existing populated PR view and popup without chan
     assert.ok(!colors.includes(mock.palette.background), "terminal background must not paint UI surfaces");
     assert.deepEqual(mock.shared, saved);
   }
+});
+
+test("review box and PR menu run reviewpr in a pr-review tab without touching saved organization", async () => {
+  const { view, cx, mock } = await start(); seed(mock);
+  const key = prKey("Roblox/example", 1);
+  const saved = structuredClone(mock.shared);
+  view.review.set_value("  "); view.review.handlers.submit({}, cx);
+  assert.deepEqual(mock.runs, []);
+  view.review.set_value("first line\nsecond"); view.review.handlers.submit({ shift: true }, cx);
+  assert.deepEqual(mock.runs, []);
+  assert.equal(view.review.value(), "first line\nsecond");
+  view.review.handlers.submit({}, cx);
+  assert.equal(mock.runs.at(-1)[1].argv.at(-1), "first line\nsecond");
+  view.review.set_value("look at the cache change"); click(view, "send-review", cx);
+  assert.deepEqual(mock.runs.at(-1), ["space.new", { name: "pr-review", tab: "Review: look at the cache change",
+    folder: "/Users/me/Planning/pr-review", argv: ["zsh", "-ic", 'reviewpr "$1"', "reviewpr", "look at the cache change"], machine: "" }]);
+  assert.equal(view.review.value(), "");
+  mock.spaces = [{ id: "sp1", name: "pr-review", machine: null }];
+  hover(view, key, cx); lookup(view.render(), `pr-actions-${key}`).methods.on_open_change[0](true, cx);
+  click(view, `review-${key}`, cx);
+  assert.deepEqual(mock.runs.at(-1), ["tab.new", { space: "sp1", name: "Review example #1",
+    folder: "/Users/me/Planning/pr-review", argv: ["zsh", "-ic", 'reviewpr "$1"', "reviewpr", `https://${HOST}/Roblox/example/pull/1`] }]);
+  assert.equal(view.prMenu, null);
+  assert.deepEqual(mock.shared, saved);
 });

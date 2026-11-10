@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { HOST, STORE, storeKey, selectedHost, emptyState, loadState, normalizePR, prKey, mergeSnapshot, addFolder,
-  updateFolder, deleteFolder, reorderFolder, movePR, visiblePRs, statusText } from "./model.js";
+  updateFolder, deleteFolder, reorderFolder, movePR, visiblePRs, statusText, reviewLaunch } from "./model.js";
 
 const date = "2026-11-05T22:00:00Z";
 const node = (repo = "Roblox/example", number = 1, patch = {}) => ({ id: `${repo}:${number}`, repository: { nameWithOwner: repo },
@@ -103,4 +103,15 @@ test("status text preserves unknowns and distinguishes drafts, approvals, confli
   assert.equal(statusText({ ...pr, isDraft: true, review: null, checks: null }), "Draft · Checks unknown");
   assert.match(statusText({ ...pr, checks: "FAILURE", mergeable: "CONFLICTING" }), /Checks failed · Conflicts/);
   assert.equal(statusText(normalizePR(node(undefined, undefined, { state: "CLOSED", mergedAt: date }), date)), "Merged · 2026-11-05");
+});
+
+test("review launch reuses only the local pr-review space and quotes the prompt as one argument", () => {
+  const prompt = "it's $HOME; `x`";
+  assert.equal(reviewLaunch("   ", [], "/h"), null);
+  assert.deepEqual(reviewLaunch(prompt, [{ id: "r", name: "pr-review", machine: "vps" }], "/h")[0], "space.new");
+  const [command, args] = reviewLaunch(` ${prompt} `, [{ id: "a", name: "other" }, { id: "r", name: "pr-review", machine: null }], "/h");
+  assert.equal(command, "tab.new");
+  assert.equal(args.space, "r");
+  assert.equal(args.folder, "/h/Planning/pr-review");
+  assert.deepEqual(args.argv.slice(-1), [prompt]);
 });

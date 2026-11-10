@@ -1,8 +1,8 @@
 import { View, div, svg } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input, Popover } from "gpui-base";
-import { theme, shared, setShared, exec, nextCommand } from "herdr";
+import { v_flex, h_flex, InputState, Input, TextareaState, Textarea, Popover } from "gpui-base";
+import { theme, shared, setShared, exec, nextCommand, run, spaces, home } from "herdr";
 import { HOST, HOSTS, HOST_STORE, STORE, storeKey, selectedHost, FILTERS, loadState, addFolder, updateFolder, deleteFolder,
-  reorderFolder, movePR, visiblePRs, statusText, mergeSnapshot } from "./model.js";
+  reorderFolder, movePR, visiblePRs, statusText, mergeSnapshot, reviewLaunch } from "./model.js";
 import { discoverHosts, refreshPRs, olderPRs } from "./client.js";
 import { readableText } from "./colors.js";
 
@@ -19,6 +19,10 @@ export default class PullRequests extends View {
     this.renameInput.on("submit", (_e, cx) => this.renameFolder(cx));
     this.search = InputState.new({ placeholder: "Find a PR…" });
     this.search.on("change", (_e, cx) => cx.notify());
+    this.review = TextareaState.new({ placeholder: "Review a PR…" });
+    this.review.set_auto_grow(1, 6);
+    // Shift+Enter keeps the textarea's newline; Enter or Cmd+Enter sends.
+    this.review.on("submit", (event, cx) => { if (!event?.shift) this.sendReview(cx); });
     this.readState();
     this.detectHosts(cx);
     cx.timer.every(60000, cx => this.refresh(cx));
@@ -140,6 +144,16 @@ export default class PullRequests extends View {
     cx.notify();
   }
 
+  startReview(text, cx) {
+    const launch = reviewLaunch(text, spaces(), home());
+    if (!launch) return false;
+    try { run(...launch); return true; }
+    catch (error) { this.error = error.message; cx.notify(); return false; }
+  }
+  sendReview(cx) {
+    if (this.startReview(this.review.value(), cx)) { this.review.set_value(""); cx.notify(); }
+  }
+
   button(id, label, action, t, hint = label) {
     return div().id(id).flex_none().px(6).h(23).flex().items_center().justify_center()
       .rounded(4).text_size(11).text_color(t.muted).role("button").accessibility_label(hint).cursor_pointer().tooltip(hint)
@@ -181,6 +195,9 @@ export default class PullRequests extends View {
                   cx.write_to_clipboard(pr.url);
                   this.prMenu = null; cx.notify();
                 }, t).w_full().h(30).justify_start().text_size(12).role("menu_item"))
+                .child(this.button(`review-${pr.key}`, "Review PR", cx => {
+                  this.prMenu = null; this.startReview(pr.url, cx); cx.notify();
+                }, t, "Review this PR in a new pr-review tab").w_full().h(30).justify_start().text_size(12).role("menu_item"))
                 .child(this.button(`move-${pr.key}`, "Move to folder", cx => {
                   this.prMenu = null; this.moving = pr.key; cx.notify();
                 }, t).w_full().h(30).justify_start().text_size(12).role("menu_item"))))))))
@@ -273,6 +290,10 @@ export default class PullRequests extends View {
           .children(state.folders.map(folder => this.group(folder, t))).child(this.group(null, t)))
         .when(state.filter !== "Open", el => el.child(v_flex().px(12).py(8).gap(3).flex_none().border_t(1).border_color(t.border)
             .child(div().text_size(10).text_color(t.muted).child(`${Object.values(state.records).filter(pr => pr.state !== "OPEN").length} history PRs loaded · ${state.history.total} on GitHub`))
-            .when(state.history.hasNext, el => el.child(this.button("load-older", this.busy ? "Loading…" : "Load older PRs", cx => this.loadOlder(cx), t))))));
+            .when(state.history.hasNext, el => el.child(this.button("load-older", this.busy ? "Loading…" : "Load older PRs", cx => this.loadOlder(cx), t))))))
+      .child(h_flex().px(10).py(8).gap(4).flex_none().items_end().border_t(1).border_color(t.border)
+        .child(Textarea.new(this.review).flex_1().min_w(0).min_h(28).px(7).py(5).rounded(5).border_1()
+          .border_color(t.input).bg(t.surface).text_color(t.foreground).text_size(12))
+        .child(this.button("send-review", "Send", cx => this.sendReview(cx), t, "Run reviewpr in a new pr-review tab (Enter; Shift+Enter for a new line)")));
   }
 }
