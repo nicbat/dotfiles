@@ -107,7 +107,7 @@ duplicate agent counter at the bottom of this layout.
 The Todo section shows one `#` heading of a Markdown note, by default
 `~/Documents/Obsidian Vault/Todo List.md`, so Obsidian Sync carries it between
 devices. `##` subheadings under that heading are labels: they show as groups, and
-the All/label chips filter to unlabeled items plus one label. Click the
+the All/label chips show everything or only one label's items. Click the
 **Note · Heading** line to pick another `#` heading or another note path; the
 choice is per machine (`nic.todo.source` in Herdr's excluded `shared.json`).
 

@@ -254,7 +254,7 @@ export default class Todo extends View {
     const view = this.text == null ? null : viewOf(this.text, heading);
     const labels = view?.groups.slice(1).map(group => group.label) ?? [];
     const active = labels.includes(filter) ? filter : null;
-    const groups = view?.groups.filter(group => !active || group.label === null || group.label === active) ?? [];
+    const groups = view?.groups.filter(group => !active || group.label === active) ?? [];
     const open = groups.reduce((sum, group) => sum + group.items.length, 0);
     return v_flex().id("todo-root").size_full().min_h(0).pl(narrow ? 4 : 9).pr(narrow ? 4 : 0).pb(8).gap(5).bg(t.chrome)
       .track_focus(this.handle).on_key_down((event, cx) => {

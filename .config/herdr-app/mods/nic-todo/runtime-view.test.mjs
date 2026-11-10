@@ -190,10 +190,10 @@ test("after a delete, other todos still complete, edit and the Undo prompt clear
   assert.equal(view.error, null);
 });
 
-test("a label filter keeps unlabeled items, hides other labels and is remembered", async () => {
+test("a label filter shows only that label's items and is remembered", async () => {
   const view = await start();
   await click(view.render(), "filter-0");
-  assert.deepEqual(shown(view.render()), ["test 1", "test 2", "test 5", "get tea"]);
+  assert.deepEqual(shown(view.render()), ["test 5", "get tea"]);
   assert.equal((await start(false)).source().filter, "In Office");
   await click(view.render(), "filter-all");
   assert.equal(shown(view.render()).length, 5);
