@@ -40,6 +40,7 @@ const modules = {
   "gpui-base": 'export const v_flex = globalThis.herdrFooterTest.element; export const h_flex = v_flex;',
   "herdr": `const test = globalThis.herdrFooterTest;
     export const spaces = () => test.fixture.spaces;
+    export const updates = () => ({ app: { ready: false } });
     export const panes = () => test.fixture.panes;
     export const terminals = () => test.fixture.terminals;
     export const agents = () => test.fixture.agents;

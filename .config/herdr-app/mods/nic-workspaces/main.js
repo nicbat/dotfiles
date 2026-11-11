@@ -286,12 +286,30 @@ export default class Workspaces extends View {
       .children(tab.leaves.flatMap(p => this.paneRows(p, t)))];
   }
 
+  // On the rail: a centred tile, its status a dot on the corner, drafts a pen below it.
+  railRow(space, t, fill, detail, index) {
+    const dot = { working: t.working, blocked: t.blocked, done: t.done, unknown: t.muted }[space.status];
+    const label = { working: "Working", blocked: "Needs your attention", done: "Done — unread", unknown: "Status unavailable" }[space.status];
+    return h_flex().id(`space-${space.id}`).h(28).w_full().flex_none().justify_center().items_center().rounded(6)
+      .when(space.active, el => el.bg(t.selected)).hover(el => el.bg(t.hover))
+      .tooltip(`${space.name}${space.machine ? ` · ${space.machine}` : ""}\n${detail}${label ? `\n${label}` : ""}`)
+      .on_click(() => run("space.select", { id: space.id }))
+      .on_mouse_down("right", () => this.menu("space", { id: space.id }))
+      .child(div().relative().size(20).flex_none().rounded(5).bg(fill).flex().items_center().justify_center()
+        .text_color("#ffffff").text_size(11).font_semibold().child([...space.name][0]?.toUpperCase() || "?")
+        .when(Boolean(dot), el => el.child(div().absolute().top(-3).right(-3).size(space.status === "blocked" ? 10 : 8)
+          .rounded_full().bg(dot).border_2().border_color(space.active ? t.selected : t.chrome)))
+        .when(space.draftCount > 0, el => el.child(div().absolute().bottom(-4).right(-5).text_size(9)
+          .text_color(t.foreground).child("✎"))));
+  }
+
   spaceRows(space, t, narrow, index) {
     const folded = this.folded.has(space.id);
     const hovered = this.hoveredSpace === space.id;
     const color = shared("space.colors")?.[space.id] ?? "ansi6";
     const fill = color.startsWith("#") ? color : t[color];
     const detail = `${space.tabs.length} tabs · ${space.paneCount} panes · ${space.agentCount} agents`;
+    if (narrow) return [this.railRow(space, t, fill, detail, index)];
     const row = h_flex().id(`space-${space.id}`).h(33).flex_none().pl(narrow ? 3 : 6).pr(3).gap(6)
       .items_center().rounded(6).when(space.active && (folded || narrow), el => el.bg(t.selected))
       .hover(el => el.bg(t.hover)).tooltip(`${space.name}${space.machine ? ` · ${space.machine}` : ""}\n${detail}`)
@@ -369,8 +387,12 @@ export default class Workspaces extends View {
           .hover(el => el.bg(t.hover).text_color(t.foreground)).tooltip("New space")
           .on_click(() => run("space.new")).child(svg(art("plus")).size(12)))))
       .child((this.scrollbar ??= new SlimScrollbar()).wrap(v_flex().id("workspace-list-content")
-        .w_full().flex_none().pl(narrow ? 4 : 7).pr(9).pb(10)
-        .children(tree.flatMap((space, i) => this.spaceRows(space, t, narrow, i))), "workspace-list"));
+        .w_full().flex_none().pl(narrow ? 4 : 7).pr(narrow ? 4 : 9).pb(10)
+        .children(tree.flatMap((space, i) => this.spaceRows(space, t, narrow, i)))
+        // The rail's header holds search, so new space follows the tiles.
+        .when(narrow, el => el.child(h_flex().id("rail-new-space").h(28).w_full().flex_none().justify_center().items_center()
+          .rounded(6).text_color(t.dim).hover(el => el.bg(t.hover).text_color(t.foreground)).tooltip("New space")
+          .on_click(() => run("space.new")).child(svg(art("plus")).size(12)))), "workspace-list"));
     return this.drag ? this.drag.root(root) : root;
   }
 }

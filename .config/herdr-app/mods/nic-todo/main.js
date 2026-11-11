@@ -1,6 +1,6 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, Checkbox } from "gpui-base";
-import { theme, props, shared, setShared, home, readTextFile, writeTextFile, watchFolder } from "herdr";
+import { theme, props, shared, setShared, home, run, readTextFile, writeTextFile, watchFolder } from "herdr";
 import { titleText, headings, viewOf, addTodo, setDone, editTodo, removeTodo, restoreTodo } from "./todo-file.js";
 import { SlimScrollbar } from "./slim-scrollbar.js";
 
@@ -8,7 +8,6 @@ const art = name => `mods/workspace-chrome/${name}.svg`;
 // Which note and heading this machine shows; kept in Herdr's shared.json, outside dotfiles.
 const SOURCE = "nic.todo.source";
 const defaultPath = () => `${home()}/Documents/Obsidian Vault/Todo List.md`;
-const expand = path => path.trim().replace(/^~(?=\/|$)/, home());
 const folderOf = path => path.slice(0, path.lastIndexOf("/")) || "/";
 const fileName = path => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
 const today = (d = new Date()) =>
@@ -27,11 +26,11 @@ export default class Todo extends View {
     this.addInput.on("submit", (_e, cx) => this.add(cx));
     this.editInput = InputState.new();
     this.editInput.on("submit", (_e, cx) => this.saveEdit(cx));
-    this.pathInput = InputState.new({ placeholder: "Path to a Markdown note" });
-    this.pathInput.on("submit", (_e, cx) => this.usePath(cx));
     this.handle = cx.focus_handle();
     this.ready = this.load(cx);
     this.watch(cx);
+    // Workspace settings (nic-settings) changes the note through shared state.
+    cx.timer.every(1000, cx => this.sync(cx));
   }
 
   close() { this.scrollbar?.close(); this.watching = null; }
@@ -61,7 +60,7 @@ export default class Todo extends View {
       if (path !== this.source().path) return;
       if (text == null) {
         this.text = null;
-        this.error = `Couldn't find ${path}. Choose the note to use below.`;
+        this.error = `Couldn't find ${path}. Choose another note in Workspace settings (⌘⇧,).`;
         this.choosing = true;
       } else {
         this.text = text;
@@ -76,6 +75,7 @@ export default class Todo extends View {
   watch(cx) {
     const token = this.watching = {};
     const { path } = this.source();
+    this.watchedPath = path;
     cx.spawn(async cx => {
       while (this.watching === token) {
         let changed;
@@ -180,10 +180,12 @@ export default class Todo extends View {
     cx.notify();
   }
 
-  usePath(cx) {
-    const path = expand(this.pathInput.value());
-    if (!path) return;
-    this.setSource({ path, heading: null, filter: null });
+  // Follow a note chosen elsewhere: start over on the new file.
+  sync(cx) {
+    if (this.source().path !== this.watchedPath) return this.retarget(cx);
+  }
+
+  retarget(cx) {
     this.text = null;
     this.error = null;
     this.editing = this.removed = null;
@@ -239,11 +241,11 @@ export default class Todo extends View {
         .bg(name === current ? t.selected : t.chrome).hover(el => el.bg(t.hover).text_color(t.foreground))
         .on_click((_e, cx) => this.chooseHeading(name, cx))
         .child(div().w(10).flex_none().child(name === current ? "✓" : "")).child(`# ${name}`)))
-      .child(div().pt(3).text_size(10).text_color(t.muted).child("Note file"))
-      .child(h_flex().h(28).gap(4).items_center()
-        .child(Input.new(this.pathInput).flex_1().min_w(0).h_full().px(7).rounded(5).border_1()
-          .border_color(t.input).bg(t.surface).text_color(t.foreground).text_size(11))
-        .child(this.button("use-path", "check", "Use this note (Enter)", cx => this.usePath(cx), t)));
+      .child(h_flex().id("change-note").h(24).px(6).gap(6).items_center().rounded(4).cursor_pointer()
+        .text_size(11).text_color(t.muted).hover(el => el.bg(t.hover).text_color(t.foreground))
+        .tooltip("Choose the note in Workspace settings (⌘⇧,)")
+        .on_click(() => { this.choosing = false; run("mod.open", { name: "nic-settings" }); })
+        .child(div().w(10).flex_none()).child("Change note…"));
   }
 
   render() {
@@ -273,7 +275,6 @@ export default class Todo extends View {
         .hover(el => el.text_color(t.foreground))
         .on_click((_e, cx) => {
           this.choosing = !this.choosing;
-          if (this.choosing) this.pathInput.set_value(this.source().path.replace(home(), "~"));
           cx.notify();
         })
         .child(div().min_w(0).truncate().child(`${fileName(path)} · ${heading ?? "…"}`))

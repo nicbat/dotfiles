@@ -16,7 +16,7 @@
           "id": "brand",
           "type": "block",
           "content": {
-            "mod": "workspace-chrome"
+            "mod": "nic-chrome"
           },
           "size": {
             "px": 46
@@ -27,59 +27,97 @@
           "id": "sidebar-sections",
           "type": "column",
           "resizable": true,
-          "divider": { "width": 1, "color": "border" },
+          "divider": {
+            "width": 1,
+            "color": "border"
+          },
           "children": [
             {
               "id": "workspace-section",
               "type": "column",
-              "size": { "weight": 3 },
+              "size": {
+                "weight": 3
+              },
               "min": 30,
               "resizable": false,
               "children": [
                 {
                   "id": "workspace-section-header",
                   "type": "block",
-                  "size": { "px": 30 },
+                  "size": {
+                    "px": 30
+                  },
                   "content": {
                     "mod": "nic-sidebar-section",
                     "props": {
-                      "section": "workspace-section", "body": "sidebar-lists", "parent": "sidebar-sections",
-                      "title": "Workspaces", "count": "nic.sidebar.workspaces-count", "suffix": "agents",
+                      "section": "workspace-section",
+                      "body": "sidebar-lists",
+                      "parent": "sidebar-sections",
+                      "title": "Workspaces",
+                      "count": "nic.sidebar.workspaces-count",
+                      "suffix": "agents",
                       "activity": "nic.sidebar.agent-counts",
-                      "action": "space.new", "actionTitle": "New space"
+                      "action": "space.new",
+                      "actionTitle": "New space",
+                      "railAction": "mod.open",
+                      "railArgs": {
+                        "name": "picker"
+                      },
+                      "railTitle": "Search",
+                      "railIcon": "search"
                     }
                   }
                 },
                 {
                   "id": "sidebar-lists",
                   "type": "block",
-                  "content": { "mod": "nic-workspaces", "props": { "hideHeader": true, "section": "workspace-section" } }
+                  "content": {
+                    "mod": "nic-workspaces",
+                    "props": {
+                      "hideHeader": true,
+                      "section": "workspace-section"
+                    }
+                  }
                 }
               ]
             },
             {
               "id": "todo-section",
               "type": "column",
-              "size": { "weight": 1 },
+              "size": {
+                "weight": 1
+              },
               "min": 30,
               "resizable": false,
               "children": [
                 {
                   "id": "todo-section-header",
                   "type": "block",
-                  "size": { "px": 30 },
+                  "size": {
+                    "px": 30
+                  },
                   "content": {
                     "mod": "nic-sidebar-section",
                     "props": {
-                      "section": "todo-section", "body": "todo-list", "parent": "sidebar-sections",
-                      "title": "Todo", "count": "nic.sidebar.todo-count", "suffix": "open"
+                      "section": "todo-section",
+                      "body": "todo-list",
+                      "parent": "sidebar-sections",
+                      "title": "Todo",
+                      "count": "nic.sidebar.todo-count",
+                      "suffix": "open",
+                      "railHide": true
                     }
                   }
                 },
                 {
                   "id": "todo-list",
                   "type": "block",
-                  "content": { "mod": "nic-todo", "props": { "section": "todo-section" } }
+                  "content": {
+                    "mod": "nic-todo",
+                    "props": {
+                      "section": "todo-section"
+                    }
+                  }
                 }
               ]
             }
@@ -89,13 +127,14 @@
           "id": "sidebar-footer",
           "type": "block",
           "content": {
-            "mod": "workspace-chrome",
+            "mod": "nic-workspace-status",
             "props": {
-              "footer": true
+              "sidebar": true,
+              "block": "sidebar-footer"
             }
           },
           "size": {
-            "px": 69
+            "px": 41
           }
         }
       ],
@@ -198,17 +237,6 @@
           ],
           "padding": 8,
           "gap": 8
-        },
-        {
-          "id": "status",
-          "type": "block",
-          "content": {
-            "mod": "nic-workspace-status",
-            "props": { "hideAgents": true }
-          },
-          "size": {
-            "px": 28
-          }
         }
       ],
       "resizable": false

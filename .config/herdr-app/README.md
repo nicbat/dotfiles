@@ -33,15 +33,24 @@ staged and unstaged dotfile changes.
   are never backed up; native OSC 7501 reports take precedence when available.
 - `mods/nic-workspace-status`: counts the same recognized
   agents as the sidebar, including live legacy attachments and declawd
-  wrappers without native status reports. In `nic-combined`, it supplies
-  `working/total agents` to the Workspaces section header; the bottom bar keeps
-  machine, branch and palette controls. Other layouts retain the bottom counter.
+  wrappers without native status reports. In `nic-combined` it is the sidebar's
+  footer rather than a bar under the work area: the space's machine on the left
+  (branch in its tooltip), Settings, Workspace settings and Add machine icons on
+  the right, stacked on the rail, where it resizes its own block. It supplies
+  `working/total agents` to the Workspaces section header. Other layouts retain
+  the bottom counter.
   Counts use native reports, fresh local attachment snapshots, and Codex hook
   records bound to the live session and foreground PID. Its “needs you” count
   uses reported blocked states; unavailable status stays distinct in the
   tooltip. Herdr scopes imports to each mod; keep its local `visible-agents.js`
   and `codex-status.js` copies synchronized with the combined sidebar.
 - `mods/nic-auto-title`: tab titles from the active terminal's task.
+- `mods/nic-chrome`: a personal clone of the shipped `workspace-chrome`
+  (brand row). It folds the sidebar to a one-icon (44px) rail; see Folded rail.
+- `mods/nic-settings`: the **Workspace settings** dialog (Cmd+Shift+,, the
+  footer's layers icon, or Todo's **Change note…**) for options Herdr's own
+  Settings can't hold, starting with Todo's note and heading. It writes the
+  shared state the mods already read and keeps a local copy of `todo-file.js`.
 - `mods/nic-prs`: authored PRs, GitHub host selection, personal folders and retained history
   in the right-hand panel. Requires `gh` access to `github.rbx.com`.
 - `mods/nic-which-key`: F1 and Ctrl+B Space keybinding guide.
@@ -108,8 +117,10 @@ The Todo section shows one `#` heading of a Markdown note, by default
 `~/Documents/Obsidian Vault/Todo List.md`, so Obsidian Sync carries it between
 devices. `##` subheadings under that heading are labels: they show as groups, and
 the All/label chips show everything or only one label's items. Click the
-**Note · Heading** line to pick another `#` heading or another note path; the
-choice is per machine (`nic.todo.source` in Herdr's excluded `shared.json`).
+**Note · Heading** line to pick another `#` heading; **Change note…** there (or
+Cmd+Shift+,) opens Workspace settings to choose another note. Todo follows a
+note changed there within a second. The choice is per machine
+(`nic.todo.source` in Herdr's excluded `shared.json`).
 
 Type in **Add a todo…** and press Enter (or +); new items go under the heading,
 unlabeled. Checking an item moves it to `# Archive` → `## <heading>` with
@@ -125,8 +136,20 @@ lines, front matter and code blocks are kept. Saves use `writeTextFile` with the
 text last read, so an edit arriving from Obsidian is never overwritten: the note
 is re-read and the change applied again, or, if that item itself changed, the
 list reloads with a message. The note's folder is watched for changes. Undo
-lasts until the next deletion or reload. The narrow sidebar rail retains the
-section chevrons but hides todo entry and rows; widen it to edit the list.
+lasts until the next deletion or reload. On the folded rail the Todo body
+folds away and its header shows the open count; click it to unfold the sidebar.
+
+### Folded rail
+
+The sidebar toggle folds `nic-combined` to a one-icon rail and back to its saved
+width. Search sits at the top of the rail, then lettered space tiles with a status
+dot on the corner (✎ for drafts) and **+** for a new space; Todo shows `✓ <open>`
+and the footer stacks its icons. The toggle keeps the top row: in the rail's own
+corner in full screen, or in the tab bar just past the macOS traffic lights when
+windowed, where `nic-auto-title` pads for them. A section header with
+`railHide` folds its body on the rail and reopens it on unfold unless it was
+already folded; `railAction`/`railArgs`/`railTitle`/`railIcon` give the rail
+header its own button (Search for Workspaces).
 
 `mods/nic-sidebar-section` provides reusable section headers. Each is a column
 with a fixed 30px header and a body block; their parent column owns native

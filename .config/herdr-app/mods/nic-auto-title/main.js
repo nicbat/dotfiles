@@ -2,7 +2,7 @@ import { View, div, svg, image } from "gpui-kit";
 import { h_flex } from "gpui-base";
 import { home } from "herdr";
 import { AutoTitles } from "./auto-title.js";
-import { spaces, panes, run, openOverlay, theme, window, shared, layout, settings } from "herdr";
+import { spaces, panes, run, openOverlay, theme, window, shared, setShared, layout, settings } from "herdr";
 import { TabDrag } from "./drag-ui.js";
 import { panelChoices } from "./panel-choices.js";
 
@@ -80,6 +80,14 @@ export default class Tabs extends View {
     const lightsPadding = w?.platform === "macos" && w.titlebar === "none" && !w.fullscreen && root?.traffic_lights
       ? Math.max(10, (root.traffic_lights[0] + 64) / settings().zoom - (sidebar?.hidden ? 0 : sidebar?.size?.px ?? 0))
       : 10;
+    // Where the traffic lights take the rail's top row (macOS, not full screen),
+    // the sidebar toggle sits here, just past them; otherwise nic-chrome has it.
+    const railToggle = w?.platform === "macos" && w.titlebar === "none" && !w.fullscreen
+      && sidebar && !sidebar.hidden && (sidebar.size?.px ?? Infinity) < 160;
+    const expandSidebar = () => {
+      setShared("sidebar.collapsed", false);
+      run("layout.resize", { id: "sidebar", px: shared("sidebar.width") ?? 268 });
+    };
     const panel = find(root, "panel"), body = find(root, "panel-body");
     const enabled = panelChoices(root, shared("workspace.panels"));
     this.syncPanel(space, panel, body, enabled);
@@ -95,6 +103,7 @@ export default class Tabs extends View {
     };
     return this.drag.root(h_flex().id("tabs-root").size_full().min_w(0).px(10).pl(lightsPadding).gap(3).items_center().bg(t.chrome).border_b(1).border_color(t.border)
       .on_scroll_wheel(e => { if (!this.drag.state() && Math.abs(e.delta.y) >= 1) run(e.delta.y > 0 ? "tab.prev" : "tab.next"); })
+      .when(railToggle, el => el.child(button("sidebar-toggle", svg("mods/workspace-chrome/sidebar.svg").size(15), expandSidebar).tooltip("Expand sidebar")))
       .child(h_flex().id("tab-scroll").flex_1().min_w(0).h_full().items_center().gap(3)
         .when(this.drag.state()?.active, el => el.overflow_x_scroll())
         .when(!this.drag.state()?.active, el => el.overflow_x_scrollbar()).children(shown.map(item)))

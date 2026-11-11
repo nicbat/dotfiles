@@ -33,6 +33,7 @@ const modules = {
     export const shared = key => fixture.shared[key];
     export const setShared = (key, value) => { fixture.shared[key] = value; };
     export const home = () => "/Users/me";
+    export const run = (name, args) => { fixture.ran = [name, args]; };
     export const readTextFile = async path => fixture.files.get(path) ?? null;
     export const writeTextFile = async (path, text, expected) => {
       fixture.beforeWrite?.(path); fixture.beforeWrite = null;
@@ -48,7 +49,7 @@ registerHooks({
     { format: "module", source: modules[url.slice(10)], shortCircuit: true } : next(url, context); }
 });
 const { default: Todo } = await import("./main.js");
-const cx = { notify() {}, stop_propagation() {}, focus_handle: () => ({}), timer: { after: () => ({ cancel() {} }) },
+const cx = { notify() {}, stop_propagation() {}, focus_handle: () => ({}), timer: { after: () => ({ cancel() {} }), every: () => ({ cancel() {} }) },
   spawn(body) { body(cx); }, sleep: () => new Promise(() => {}) };
 // A click or key handler's context: like Herdr's, it refuses once the handler has returned,
 // so work that awaits must move to cx.spawn.
@@ -219,23 +220,27 @@ test("an item changed elsewhere is reported, not guessed, and the note is left a
   assert.ok(shown(view.render()).includes("test 2 (edited on phone)"));
 });
 
-test("the source menu switches headings and notes; a missing note asks for another", async () => {
+test("the source menu switches headings; a note chosen in settings is followed, a missing one asks for another", async () => {
   const view = await start();
   await click(view.render(), "todo-source");
-  assert.equal(view.pathInput.value(), "~/Documents/Obsidian Vault/Todo List.md");
+  assert.ok(lookup(view.render(), "todo-settings"));
+  await click(view.render(), "change-note");
+  assert.deepEqual(fixture.ran, ["mod.open", { name: "nic-settings" }]);
+  await click(view.render(), "todo-source");
   await click(view.render(), "heading-1");
   assert.deepEqual(shown(view.render()), ["test 3", "test 4"]);
   assert.equal(fixture.shared["nic.sidebar.todo-count"], 2);
   assert.equal((await start(false)).heading(), "Home");
 
   fixture.files.set("/Users/me/Notes/Other.md", "# Errands\n- [ ] post\n");
-  view.pathInput.set_value("~/Notes/Missing.md");
-  await view.pathInput.handlers.submit({}, hx());
+  assert.equal(view.sync(hx()), undefined, "an unchanged note is left alone");
+  fixture.shared["nic.todo.source"] = { path: "/Users/me/Notes/Missing.md", heading: null, filter: null };
+  await view.sync(hx());
   assert.match(view.error, /Couldn't find \/Users\/me\/Notes\/Missing.md/);
   assert.ok(lookup(view.render(), "todo-settings"));
   assert.equal(lookup(view.render(), "add-todo"), undefined);
-  view.pathInput.set_value("~/Notes/Other.md");
-  await view.pathInput.handlers.submit({}, hx());
+  fixture.shared["nic.todo.source"] = { path: "/Users/me/Notes/Other.md", heading: null, filter: null };
+  await view.sync(hx());
   assert.equal(view.error, null);
   assert.deepEqual(shown(view.render()), ["post"]);
   assert.equal(note(), NOTE, "the previous note is untouched");
