@@ -66,7 +66,7 @@ export default class Tabs extends View {
       const row = h_flex().id(`tab-${c.id}`).h(29).px(10).gap(7).rounded(7).items_center().flex_none().text_size(12.8)
         .border(1).border_color(c.active ? t.border : t.chrome).bg(c.active ? t.raised : t.chrome).text_color(c.active ? t.foreground : t.muted)
         .hover(s => s.bg(t.hover))
-        .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", width: 280, height: 330, props: { tab: "tab", target: { id: c.id, space: space.id } } }))
+        .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 330, props: { frameless: true, tab: "tab", target: { id: c.id, space: space.id } } }))
         .when(Boolean(program?.icon), el => el.child(program.tint ? svg(program.icon).size(14).text_color(t.muted) : image(program.icon).size(14)))
         .child(div().max_w(320).truncate().child(c.zoomed ? `${name} Z` : name))
         .when(c.status === "working", el => el.child(svg("mods/workspace-chrome/spinner.svg").size(12).flex_none().text_color(t.working).spin(900)))

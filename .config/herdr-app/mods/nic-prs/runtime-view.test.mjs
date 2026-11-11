@@ -52,6 +52,9 @@ const click = (view, id, cx) => {
     hover(view, key, cx);
     lookup(view.render(), `pr-actions-${key}`).methods.on_open_change[0](true, cx);
   }
+  // Popover triggers open by asking their popover, not by a click handler.
+  const popover = id === "choose-host" ? "host-picker" : id.startsWith("options-") ? `folder-options-${id.slice(8)}` : null;
+  if (popover) { const node = lookup(view.render(), popover); assert.ok(node, popover); node.methods.on_open_change[0](true, cx); return; }
   const node = lookup(view.render(), id); assert.ok(node, id); node.methods.on_click[0](null, cx); };
 const date = "2026-11-05T22:00:00Z";
 const node = (state = "OPEN") => ({ id: "P1", repository: { nameWithOwner: "Roblox/example" }, number: 1,
@@ -82,7 +85,7 @@ test("real input, folder and move callbacks persist organization across a new vi
   assert.equal(mock.shared[STORE].assignments[key], first);
   click(view, `options-${first}`, cx); click(view, `rename-${first}`, cx);
   view.renameInput.set_value("Réviser 工作"); view.renameInput.handlers.submit({}, cx);
-  click(view, `down-${first}`, cx);
+  click(view, `options-${first}`, cx); click(view, `down-${first}`, cx);
   assert.deepEqual(mock.shared[STORE].folders.map(f => f.id), [second, first]);
   click(view, `folder-${first}`, cx);
   assert.equal(lookup(view.render(), `pr-${key}`), undefined);
@@ -220,13 +223,15 @@ test("hover menu dismisses, opens the folder picker, and ignores a late exit fro
   assert.ok(lookup(view.render(), `move-${key}`));
   lookup(view.render(), `pr-actions-${key}`).methods.on_open_change[0](false, cx);
   assert.equal(lookup(view.render(), `more-${key}`), undefined);
+  // Move to folder swaps the open menu for the folder picker; dismissing it closes both.
   click(view, `move-${key}`, cx);
   hover(view, key, cx, false);
-  assert.equal(view.prMenu, null);
+  assert.equal(view.prMenu, key);
   assert.ok(lookup(view.render(), `more-${key}`));
   assert.equal(lookup(view.render(), `move-${key}`), undefined);
   assert.ok(lookup(view.render(), `move-picker-${key}`));
-  click(view, `cancel-move-${key}`, cx);
+  lookup(view.render(), `pr-actions-${key}`).methods.on_open_change[0](false, cx);
+  assert.equal(view.moving, null);
   assert.equal(lookup(view.render(), `more-${key}`), undefined);
   view.hoveredPR = "other-row";
   hover(view, key, cx, false);

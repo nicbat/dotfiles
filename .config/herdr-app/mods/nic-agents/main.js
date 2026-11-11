@@ -391,8 +391,8 @@ export default class Agents extends View {
           .when(a.focused, el => el.bg(t.accent + "1f"))
           .hover((s) => s.bg(a.focused ? t.accent + "2b" : t.hover))
           .on_click(() => run("pane.focus", { pane: a.pane }))
-          .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", width: 280, height: 330,
-            props: { tab: "pane", target: { pane: a.pane, terminal: a.address } } }))
+          .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 330,
+            props: { frameless: true, tab: "pane", target: { pane: a.pane, terminal: a.address } } }))
           .child(div().flex_1().min_w(0).whitespace_nowrap().text_right()
             .when(a.focused, el => el.font_bold()).text_color(a.focused ? t.accent : t.muted).child(String(i + 1)))
           .child(h_flex().w(14).flex_none().items_center().justify_center().child(this.status(t, a, true)));
@@ -439,8 +439,8 @@ export default class Agents extends View {
           cx.notify();
         })
         .on_click(() => run("pane.focus", { pane: a.pane }))
-        .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", width: 280, height: 330,
-          props: { tab: "pane", target: { pane: a.pane, terminal: a.address } } }))
+        .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 330,
+          props: { frameless: true, tab: "pane", target: { pane: a.pane, terminal: a.address } } }))
         .when(Boolean(pic), el => el.child(div().id(`agent-fold-${a.address}`)
           .when(subs.length > 0, el => el.on_click((_e, cx) => {
             cx.stop_propagation();

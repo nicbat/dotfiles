@@ -8,6 +8,7 @@ import { v_flex, h_flex } from "gpui-base";
 import { run, props, closeOverlay, openOverlay, theme, keys, terminals, spaces, panes, exec, home, notify } from "herdr";
 import { moveSource, unmergeSource } from "./move-targets.js";
 import { movePicker } from "./move-view.js";
+import { menuPanel, menuItem, menuRule } from "./menu-ui.js";
 
 // Where a space is now: its first terminal's live folder, else where it was made.
 function place(s) {
@@ -112,9 +113,12 @@ function items(p, git) {
   }
 }
 
+const ICONS = { "worktree": "git-branch", "app.help": "terminal", "app.theme": "settings", "pane.split": "panel-right",
+  "pane.zoom": "square", "move-to-tab": "layers", "unmerge-tab": "panel-left", "copy": "files", "share-last": "file-text",
+  "terminal.right_click": "monitor", "terminal.park": "pin-off" };
 function menuIcon(command) {
-  const name = command.endsWith(".close") ? "x" : command.endsWith(".rename") ? "square-pen" : command.endsWith(".new") ? "plus" : command === "worktree" ? "git-branch" : command === "app.help" ? "terminal" : command === "app.theme" ? "settings" : command === "pane.split" ? "panel-right" : command === "pane.zoom" ? "square" : "terminal";
-  return `mods/workspace-chrome/${name}.svg`;
+  return command.endsWith(".close") ? "x" : command.endsWith(".rename") ? "square-pen" : command.endsWith(".new") ? "plus" :
+    ICONS[command] ?? "terminal";
 }
 
 // The key bound to a command, for the hint on the right.
@@ -127,6 +131,16 @@ function shortcut(name, args) {
 
 export default class Menu extends View {
   init(_props, cx) {
+    // Herdr opens the terminal right-click menu itself, framed (mod.json's frame isn't used there).
+    // Reopen it frameless at the pointer so it draws like every other menu.
+    const opened = props();
+    if (!opened?.frameless && !opened?.movePicker) {
+      const { overlay, ...rest } = opened ?? {};
+      this.reopening = true;
+      if (overlay) closeOverlay(overlay);
+      openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 330, props: { ...rest, frameless: true } });
+      return;
+    }
     this.at = 0;
     this.destination = null;
     this.git = null;
@@ -185,16 +199,17 @@ export default class Menu extends View {
 
   render(cx) {
     if (props()?.movePicker) return movePicker(this);
+    if (this.reopening) return div();
     const t = theme();
     const list = items(props(), this.git);
-    return v_flex()
-      .id("menu")
+    const rule = (it, i) => i > 0 && (it[1].endsWith(".close") || it[1] === "app.help" || (it[1] === "app.theme" && list[i - 1][1] !== "app.theme"));
+    // The overlay is frameless and a little taller than any menu; the panel is as tall as its rows,
+    // and a press beside it closes the menu.
+    return div()
+      .id("menu-root")
+      .size_full()
       .track_focus(this.handle)
-      .w_full()
-      .min_h(0)
-      .p(5)
-      .bg(t.popover)
-      .text_size(12.8)
+      .on_mouse_down("left", () => closeOverlay(props()?.overlay))
       .on_key_down((e, cx) => {
         if (this.unmerging) { cx.stop_propagation(); return; }
         if (e.key === "down") this.at = (this.at + 1) % list.length;
@@ -204,26 +219,12 @@ export default class Menu extends View {
         else return;
         cx.notify();
       })
-      .children(
-        this.unmerging ? [div().p(10).child("Separating panes…")] : list.map((it, i) =>
-          v_flex()
-            .when(i > 0 && (it[1].endsWith(".close") || it[1] === "app.help" || (it[1] === "app.theme" && list[i - 1][1] !== "app.theme")), el => el.child(div().mx(7).my(4).h(1).bg(t.border)))
-            .child(h_flex()
-            .id(`mi-${i}`)
-            .h(31)
-            .px(8)
-            .gap(9)
-            .rounded(7)
-            .items_center()
-            .justify_between()
-            .text_color(t.foreground)
-            .when(i === this.at, (el) => el.bg(t.selected))
-            .hover((s) => s.bg(t.hover))
-            .on_click((_e, cx) => this.choose(i, cx))
-            .child(svg(menuIcon(it[1])).size(14).flex_none().text_color(t.muted))
-            .child(div().flex_1().child(it[0]))
-            .child(div().text_size(11).text_color(t.dim).child(shortcut(it[1], it[2])))),
-        ),
-      );
+      .child(menuPanel("menu", t, 220).children(
+        this.unmerging ? [div().px(7).py(6).text_color(t.muted).child("Separating panes…")] : list.flatMap((it, i) => [
+          ...(rule(it, i) ? [menuRule(t)] : []),
+          menuItem(`mi-${i}`, { label: it[0], icon: menuIcon(it[1]), hint: shortcut(it[1], it[2]), active: i === this.at },
+            cx => this.choose(i, cx), t),
+        ]),
+      ));
   }
 }

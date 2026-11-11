@@ -5,6 +5,7 @@ import { HOST, HOSTS, HOST_STORE, STORE, storeKey, selectedHost, FILTERS, loadSt
   reorderFolder, movePR, visiblePRs, statusText, mergeSnapshot, reviewLaunch } from "./model.js";
 import { discoverHosts, refreshPRs, olderPRs } from "./client.js";
 import { readableText } from "./colors.js";
+import { menuPanel, menuItem, menuRule, menuHeading } from "./menu-ui.js";
 
 export default class PullRequests extends View {
   init(_props, cx) {
@@ -178,39 +179,37 @@ export default class PullRequests extends View {
         .child(div().size(5).rounded(3).flex_none().bg(color))
         .child(div().flex_1().min_w(0).truncate().text_size(12).text_color(t.muted).child(`${pr.repository} #${pr.number}`))
         .child(div().size(28).flex_none().flex().items_center().justify_center()
-          .when(this.hoveredPR === pr.key || this.prMenu === pr.key || this.moving === pr.key, el => el.child(
+          .when(this.hoveredPR === pr.key || this.prMenu === pr.key, el => el.child(
             Popover.new(`pr-actions-${pr.key}`).anchor("top_right").open(this.prMenu === pr.key)
               .on_open_change((open, cx) => {
                 if (open) { this.prMenu = pr.key; this.moving = null; }
-                else if (this.prMenu === pr.key) this.prMenu = null;
+                else if (this.prMenu === pr.key) this.prMenu = this.moving = null;
                 cx.notify();
               })
               .trigger(div().id(`more-${pr.key}`).size(28).flex().items_center().justify_center().rounded(4)
                 .role("button").accessibility_label("PR actions").cursor_pointer().text_color(t.muted)
                 .hover(el => el.bg(t.raised).text_color(t.foreground))
                 .child(svg("mods/nic-prs/more.svg").size(18)))
-              .when(this.prMenu === pr.key, el => el.content(v_flex().w(168).p(4).rounded(6)
-                .bg(t.popover).border_1().border_color(t.border).role("menu").accessibility_label("PR actions")
-                .child(this.button(`copy-${pr.key}`, "Copy PR link", cx => {
-                  cx.write_to_clipboard(pr.url);
-                  this.prMenu = null; cx.notify();
-                }, t).w_full().h(30).justify_start().text_size(12).role("menu_item"))
-                .child(this.button(`review-${pr.key}`, "Review PR", cx => {
-                  this.prMenu = null; this.startReview(pr.url, cx); cx.notify();
-                }, t, "Review this PR in a new pr-review tab").w_full().h(30).justify_start().text_size(12).role("menu_item"))
-                .child(this.button(`move-${pr.key}`, "Move to folder", cx => {
-                  this.prMenu = null; this.moving = pr.key; cx.notify();
-                }, t).w_full().h(30).justify_start().text_size(12).role("menu_item"))))))))
+              .when(this.prMenu === pr.key, el => el.content(this.moving === pr.key ?
+                menuPanel(`move-picker-${pr.key}`, t, 200).child(menuHeading("Move to folder", t))
+                  .children([{ id: null, name: "Unfiled" }, ...this.state.folders].map(item =>
+                    menuItem(`assign-${pr.key}-${item.id ?? "unfiled"}`, { label: item.name, checked: folder === item.id }, cx => {
+                      this.prMenu = this.moving = null; this.change(state => movePR(state, pr.key, item.id), cx);
+                    }, t))) :
+                menuPanel(`pr-menu-${pr.key}`, t, 200)
+                  .child(menuItem(`copy-${pr.key}`, { label: "Copy PR link", icon: "files" }, cx => {
+                    cx.write_to_clipboard(pr.url); this.prMenu = null; cx.notify();
+                  }, t))
+                  .child(menuItem(`review-${pr.key}`, { label: "Review PR", icon: "git-compare" }, cx => {
+                    this.prMenu = null; this.startReview(pr.url, cx); cx.notify();
+                  }, t))
+                  .child(menuItem(`move-${pr.key}`, { label: "Move to folder…", icon: "folder" }, cx => {
+                    this.moving = pr.key; cx.notify();
+                  }, t))))))))
       .child(div().id(`open-${pr.key}`).w_full().text_size(12).text_color(t.foreground)
         .whitespace_normal().cursor_pointer().hover(el => el.underline())
         .on_click((_e, cx) => cx.open_url(pr.url)).child(pr.title))
-      .child(div().text_size(10).text_color(readableText(color, t.surface, t.foreground)).whitespace_normal().child(statusText(pr)))
-      .when(this.moving === pr.key, el => el.child(v_flex().id(`move-picker-${pr.key}`).w_full().p(4).gap(2)
-        .bg(t.raised).rounded(5).child(div().px(6).text_size(10).text_color(t.muted).child("Move to folder"))
-        .children([{ id: null, name: "Unfiled" }, ...this.state.folders].map(item =>
-          this.button(`assign-${pr.key}-${item.id ?? "unfiled"}`, `${folder === item.id ? "✓ " : ""}${item.name}`,
-            cx => { this.change(state => movePR(state, pr.key, item.id), cx); this.moving = null; }, t)))
-        .child(this.button(`cancel-move-${pr.key}`, "Cancel", cx => { this.moving = null; cx.notify(); }, t))));
+      .child(div().text_size(10).text_color(readableText(color, t.surface, t.foreground)).whitespace_normal().child(statusText(pr)));
   }
 
   group(folder, t) {
@@ -226,18 +225,27 @@ export default class PullRequests extends View {
         .child(div().text_size(10).text_color(t.muted).child(collapsed ? "▸" : "▾"))
         .child(div().flex_1().min_w(0).truncate().font_semibold().text_size(12).text_color(t.foreground).child(folder?.name ?? "Unfiled"))
         .child(div().text_size(10).text_color(t.muted).child(String(rows.length)))
-        .when(Boolean(folder), el => el.child(this.button(`options-${id}`, "···", cx => {
-          this.managing = this.managing === id ? null : id; this.editing = null; cx.notify();
-        }, t, "Folder options"))))
-      .when(this.managing === id && Boolean(folder), el => el.child(h_flex().gap(2).px(5).items_center()
-        .child(this.button(`rename-${id}`, "Rename", cx => {
-          this.editing = id; this.renameInput.set_value(folder.name); this.renameInput.focus(); cx.notify();
-        }, t))
-        .child(this.button(`up-${id}`, "↑", cx => this.change(state => reorderFolder(state, id, -1), cx), t, "Move folder up"))
-        .child(this.button(`down-${id}`, "↓", cx => this.change(state => reorderFolder(state, id, 1), cx), t, "Move folder down"))
-        .child(this.button(`delete-${id}`, "Delete", cx => {
-          this.change(state => deleteFolder(state, id), cx); this.managing = null; this.editing = null;
-        }, t, "Delete folder; its PRs move to Unfiled"))))
+        .when(Boolean(folder), el => el.child(Popover.new(`folder-options-${id}`).anchor("top_right")
+          .open(this.managing === id)
+          .on_open_change((open, cx) => {
+            this.managing = open ? id : this.managing === id ? null : this.managing;
+            if (open) this.editing = null;
+            cx.notify();
+          })
+          .trigger(div().id(`options-${id}`).flex_none().px(6).h(23).flex().items_center().justify_center()
+            .rounded(4).text_size(11).text_color(t.muted).role("button").accessibility_label("Folder options")
+            .cursor_pointer().tooltip("Folder options").hover(el => el.bg(t.hover).text_color(t.foreground))
+            .on_click((_e, cx) => cx.stop_propagation()).child("···"))
+          .when(this.managing === id, el => el.content(menuPanel(`folder-menu-${id}`, t, 200)
+            .child(menuItem(`rename-${id}`, { label: "Rename", icon: "square-pen" }, cx => {
+              this.managing = null; this.editing = id; this.renameInput.set_value(folder.name); this.renameInput.focus(); cx.notify();
+            }, t))
+            .child(menuItem(`up-${id}`, { label: "Move up", hint: "↑" }, cx => this.change(state => reorderFolder(state, id, -1), cx), t))
+            .child(menuItem(`down-${id}`, { label: "Move down", hint: "↓" }, cx => this.change(state => reorderFolder(state, id, 1), cx), t))
+            .child(menuRule(t))
+            .child(menuItem(`delete-${id}`, { label: "Delete folder", icon: "x", hint: "PRs → Unfiled" }, cx => {
+              this.managing = null; this.editing = null; this.change(state => deleteFolder(state, id), cx);
+            }, t)))))))
       .when(editing, el => el.child(h_flex().px(5).gap(3).items_center()
         .child(Input.new(this.renameInput).flex_1().min_w(0).h(28).px(6).rounded(4).border_1()
           .border_color(t.accent).bg(t.surface).text_size(12).text_color(t.foreground))
@@ -263,14 +271,22 @@ export default class PullRequests extends View {
           .when(Boolean(this.busy || this.discovering), el => el.spin(900)), cx => this.detectHosts(cx), t,
           this.busy || this.discovering ? "Refreshing PRs…" : "Refresh PRs")))
       .child(h_flex().px(8).pt(5).gap(3).items_center().flex_none()
-        .child(this.button("choose-host", `${this.host}${this.accounts.length > 1 ? " ▾" : ""}`, cx => {
-          if (this.accounts.length > 1 && !this.discovering) { this.choosingHost = !this.choosingHost; cx.notify(); }
-        }, t, this.accounts.length > 1 ? "Switch GitHub host" : "GitHub host"))
+        .child(Popover.new("host-picker").anchor("top_left").open(Boolean(this.choosingHost))
+          .on_open_change((open, cx) => {
+            this.choosingHost = open && this.accounts.length > 1 && !this.discovering;
+            cx.notify();
+          })
+          .trigger(h_flex().id("choose-host").flex_none().px(6).h(23).gap(4).items_center().rounded(4)
+            .text_size(11).text_color(t.muted).role("button").cursor_pointer()
+            .tooltip(this.accounts.length > 1 ? "Switch GitHub account" : "GitHub account")
+            .hover(el => el.bg(t.hover).text_color(t.foreground)).child(this.host)
+            .when(this.accounts.length > 1, el => el.child(svg("mods/workspace-chrome/chevron-down.svg").size(9))))
+          .when(Boolean(this.choosingHost), el => el.content(menuPanel("host-menu", t, 240)
+            .child(menuHeading("GitHub account", t))
+            .children(this.accounts.map(account => menuItem(`host-${account.host}`,
+              { label: account.host, hint: account.login, checked: account.host === this.host },
+              cx => this.selectHost(account.host, cx), t))))))
         .child(div().flex_1().min_w(0).truncate().text_size(10).text_color(t.muted).child(state?.login ?? "")))
-      .when(Boolean(this.choosingHost), el => el.child(v_flex().px(10).py(3).gap(2).flex_none()
-        .children(this.accounts.map(account => this.button(`host-${account.host}`,
-          `${account.host === this.host ? "✓ " : ""}${account.host} · ${account.login}`,
-          cx => this.selectHost(account.host, cx), t, `Use ${account.host}`)))))
       .when(Boolean(this.dataError || this.error), el => el.child(div().px(12).py(6).text_size(11)
         .text_color(readableText(t.blocked, t.surface, t.foreground)).whitespace_normal().child(this.dataError || this.error)))
       .when(Boolean(state), el => el

@@ -216,7 +216,7 @@ export default class Workspaces extends View {
   }
 
   menu(tab, target) {
-    openOverlay({ mod: "nic-menu", kind: "popup", width: 280, height: 362, props: { tab, target } });
+    openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 330, props: { frameless: true, tab, target } });
   }
 
   workerRows(nodes, t, depth = 0) {

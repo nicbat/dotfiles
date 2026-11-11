@@ -1,8 +1,9 @@
 import { View, div, svg } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input, Checkbox } from "gpui-base";
+import { v_flex, h_flex, InputState, Input, Checkbox, Popover } from "gpui-base";
 import { theme, props, shared, setShared, home, run, readTextFile, writeTextFile, watchFolder } from "herdr";
 import { titleText, headings, viewOf, addTodo, setDone, editTodo, removeTodo, restoreTodo } from "./todo-file.js";
 import { SlimScrollbar } from "./slim-scrollbar.js";
+import { menuPanel, menuItem, menuRule, menuHeading } from "./menu-ui.js";
 
 const art = name => `mods/workspace-chrome/${name}.svg`;
 // Which note and heading this machine shows; kept in Herdr's shared.json, outside dotfiles.
@@ -232,20 +233,18 @@ export default class Todo extends View {
         .child(this.button(`delete-${id}`, "x", "Delete todo", cx => this.remove(item, cx), t)));
   }
 
+  // The heading picker, anchored under the note's name.
   settings(t) {
     const current = this.heading();
     const options = this.text == null ? [] : headings(this.text);
-    return v_flex().id("todo-settings").flex_none().gap(3).pl(3).pr(12).pb(4)
-      .children(options.map((name, i) => h_flex().id(`heading-${i}`).h(24).px(6).gap(6).items_center().rounded(4)
-        .cursor_pointer().text_size(12).text_color(name === current ? t.foreground : t.muted)
-        .bg(name === current ? t.selected : t.chrome).hover(el => el.bg(t.hover).text_color(t.foreground))
-        .on_click((_e, cx) => this.chooseHeading(name, cx))
-        .child(div().w(10).flex_none().child(name === current ? "✓" : "")).child(`# ${name}`)))
-      .child(h_flex().id("change-note").h(24).px(6).gap(6).items_center().rounded(4).cursor_pointer()
-        .text_size(11).text_color(t.muted).hover(el => el.bg(t.hover).text_color(t.foreground))
-        .tooltip("Choose the note in Workspace settings (⌘⇧,)")
-        .on_click(() => { this.choosing = false; run("mod.open", { name: "nic-settings" }); })
-        .child(div().w(10).flex_none()).child("Change note…"));
+    return menuPanel("todo-settings", t, 220)
+      .when(options.length > 0, el => el.child(menuHeading(fileName(this.source().path), t)))
+      .children(options.map((name, i) => menuItem(`heading-${i}`, { label: `# ${name}`, checked: name === current },
+        cx => this.chooseHeading(name, cx), t)))
+      .when(options.length > 0, el => el.child(menuRule(t)))
+      .child(menuItem("change-note", { label: "Change note…", icon: "settings", hint: "⌘⇧," }, cx => {
+        this.choosing = false; cx.notify(); run("mod.open", { name: "nic-settings" });
+      }, t));
   }
 
   render() {
@@ -270,16 +269,15 @@ export default class Todo extends View {
         if (shared(key) !== size.height + 30) setShared(key, size.height + 30);
         if (wasNarrow !== (size.width < 160)) cx.notify();
       })
-      .when(!narrow, el => el.child(h_flex().id("todo-source").h(22).flex_none().gap(4).pl(5).pr(12).items_center()
-        .rounded(4).cursor_pointer().text_size(11).text_color(t.muted).tooltip(path)
-        .hover(el => el.text_color(t.foreground))
-        .on_click((_e, cx) => {
-          this.choosing = !this.choosing;
-          cx.notify();
-        })
-        .child(div().min_w(0).truncate().child(`${fileName(path)} · ${heading ?? "…"}`))
-        .child(svg(art(this.choosing ? "chevron-down" : "chevron-right")).size(9).flex_none())))
-      .when(Boolean(this.choosing) && !narrow, el => el.child(this.settings(t)))
+      .when(!narrow, el => el.child(h_flex().flex_none().pr(12).child(Popover.new("todo-source-picker").anchor("top_left")
+        .open(Boolean(this.choosing))
+        .on_open_change((open, cx) => { this.choosing = open; cx.notify(); })
+        .trigger(h_flex().id("todo-source").h(22).flex_none().min_w(0).gap(4).pl(5).pr(6).items_center()
+          .rounded(4).cursor_pointer().text_size(11).text_color(t.muted).tooltip(path)
+          .hover(el => el.text_color(t.foreground))
+          .child(div().min_w(0).truncate().child(`${fileName(path)} · ${heading ?? "…"}`))
+          .child(svg(art("chevron-down")).size(9).flex_none()))
+        .when(Boolean(this.choosing), el => el.content(this.settings(t))))))
       .when(Boolean(this.error), el => el.child(div().pl(3).pr(12).text_size(11).text_color(t.foreground)
         .whitespace_normal().child(this.error)))
       .when(Boolean(view) && !narrow, el => el.child(h_flex().h(30).flex_none().gap(4).pl(3).pr(12).items_center()

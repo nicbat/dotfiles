@@ -1,6 +1,10 @@
 {
   "place": "none",
-  "overlay": { "width": 280, "height": 362 },
+  "overlay": {
+    "width": 228,
+    "height": 330,
+    "frame": "none"
+  },
   "cloned_from": {
     "name": "menu",
     "version": "0.1.12"

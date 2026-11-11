@@ -108,12 +108,6 @@ workers hidden unless they ask to see them; follow the installed manuals for
 labels, remote machines, readiness and collecting results. A launch response
 alone does not establish that a program started or its task was submitted.
 
-When launching Codex through Herdr, include `--no-daemon`, including in core
-templates. A shared Codex server can retain another terminal's environment and
-attribute children to the wrong parent. Existing daemon-backed sessions need
-to be resumed without the daemon before their tool context changes; do not
-restart someone else's active session automatically.
-
 ## Visible panes and tabs
 
 Creating a visible tab or split is supported by Herdr App. Read its manual,

@@ -8,6 +8,8 @@ function element() {
   const proxy = new Proxy(target, { get(obj, key) {
     if (key === "child") return child => { obj.items.push(child); return proxy; };
     if (key === "children") return children => { obj.items.push(...children); return proxy; };
+    // A Popover's trigger and open content stand in for children.
+    if (key === "trigger" || key === "content") return child => { obj.items.push(child); return proxy; };
     if (key === "when") return (condition, fn) => condition ? fn(proxy) : proxy;
     if (key in obj) return obj[key];
     return (...args) => { obj.methods[key] = args; return proxy; };
@@ -26,6 +28,7 @@ const modules = {
     export const InputState = { new: globalThis.todoViewTest.input };
     export const Input = { new: globalThis.todoViewTest.element };
     export const Checkbox = { new: globalThis.todoViewTest.element };
+    export const Popover = { new: id => globalThis.todoViewTest.element().id(id) };
     export const Scrollbar = { vertical: globalThis.todoViewTest.element };`,
   "herdr": `const fixture = globalThis.todoViewTest;
     export const theme = () => fixture.palette ?? new Proxy({}, { get: () => "#556677" });
@@ -104,6 +107,8 @@ async function start(fresh = true, note = NOTE) {
 const note = () => fixture.files.get(NOTE_PATH);
 async function add(view, text) { view.addInput.set_value(text); await view.addInput.handlers.submit({}, hx()); }
 const click = async (root, id) => lookup(root, id).methods.on_click[0](null, hx());
+// The source line is a Popover trigger: pressing it asks the popover to open.
+const openSource = async view => lookup(view.render(), "todo-source-picker").methods.on_open_change[0](true, hx());
 const check = async (view, title, done) => lookup(view.render(), `check-${rowId(view.render(), title)}`).items[0]
   .methods.on_change[0](done, hx());
 const today = (d = new Date()) =>
@@ -222,11 +227,11 @@ test("an item changed elsewhere is reported, not guessed, and the note is left a
 
 test("the source menu switches headings; a note chosen in settings is followed, a missing one asks for another", async () => {
   const view = await start();
-  await click(view.render(), "todo-source");
+  await openSource(view);
   assert.ok(lookup(view.render(), "todo-settings"));
   await click(view.render(), "change-note");
   assert.deepEqual(fixture.ran, ["mod.open", { name: "nic-settings" }]);
-  await click(view.render(), "todo-source");
+  await openSource(view);
   await click(view.render(), "heading-1");
   assert.deepEqual(shown(view.render()), ["test 3", "test 4"]);
   assert.equal(fixture.shared["nic.sidebar.todo-count"], 2);
@@ -271,11 +276,11 @@ test("theme changes repaint open, archived and editing todos without touching th
   const view = await start();
   await check(view, "test 2", true);
   await click(view.render(), "archive-toggle");
-  await click(view.render(), "todo-source");
+  await openSource(view);
   await click(view.render(), `title-${rowId(view.render(), "test 5")}`);
   view.addInput.set_value("Keep this draft"); view.addInput.handlers.change({}, hx());
   const saved = [note(), [...storage]];
-  const roles = ["chrome", "surface", "hover", "selected", "input", "accent", "accent_foreground", "foreground", "muted", "dim", "blocked"];
+  const roles = ["chrome", "surface", "popover", "border", "hover", "selected", "input", "accent", "accent_foreground", "foreground", "muted", "dim", "blocked"];
   for (const [paper, ink] of [["#17191d", "#eeeeef"], ["#c0c0c0", "#000000"]]) {
     const palette = { ...Object.fromEntries(roles.map(role => [role, paper])), background: "#010203", foreground: ink, muted: ink };
     fixture.palette = palette;
