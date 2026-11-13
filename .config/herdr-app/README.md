@@ -53,7 +53,9 @@ staged and unstaged dotfile changes.
   shared state the mods already read and keeps a local copy of `todo-file.js`.
 - `mods/nic-prs`: authored PRs, GitHub host selection, personal folders and retained history
   in the right-hand panel. Requires `gh` access to `github.rbx.com`.
-- `mods/nic-which-key`: F1 and Ctrl+B Space keybinding guide.
+- `mods/nic-which-key`: F1 keybinding guide, with shortcut labels read from
+  the live bindings. Personal app bindings use direct shortcuts; the former
+  Ctrl+B prefix sequences have been removed.
 - `~/.local/share/noctalia/plugins/herdr`: local App/TUI monitoring plugin,
   core fallback, animated status wheels, and tests.
 - `~/.config/noctalia/templates/herdr-app.json` and `themes.toml`: theme
