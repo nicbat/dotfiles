@@ -33,6 +33,8 @@ const flatten = nodes => nodes.flatMap(n => [n, ...flatten(n.children ?? [])]);
 
 export function workspaceTree(spaces, panes, terminals, agents, home = "") {
   const byAgent = new Map(agents.map(a => [a.address, a]));
+  // A pane named from its menu (nic-menu's Rename) keeps that name.
+  const named = new Map(terminals.map(t => [t.address, t.labels?.["nic.title"]]).filter(([, n]) => n));
   const visible = new Set(panes.map(p => p.terminal).filter(Boolean));
   const seenWorkers = new Set(visible);
   return spaces.map(space => {
@@ -41,8 +43,8 @@ export function workspaceTree(spaces, panes, terminals, agents, home = "") {
         const agent = byAgent.get(p.terminal);
         const program = agent?.program ?? p.program;
         const children = p.terminal ? workerTree(terminals, p.terminal, visible, seenWorkers) : [];
-        const title = agent ? agentLabel(agent, tab, panes, home) :
-          p.title || program?.name || p.mod || "Pane";
+        const title = named.get(p.terminal) || (agent ? agentLabel(agent, tab, panes, home) :
+          p.title || program?.name || p.mod || "Pane");
         return { ...p, id: p.pane, title, program, agent: Boolean(agent),
           draft: agent?.draft === true,
           shells: agent?.shells ?? null, shellSupported: agent?.shellSupported === true,

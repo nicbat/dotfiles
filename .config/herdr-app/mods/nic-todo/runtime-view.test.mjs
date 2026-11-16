@@ -43,7 +43,8 @@ const modules = {
       if ((fixture.files.get(path) ?? null) !== expected) throw new Error("The file changed since it was read.");
       fixture.files.set(path, text); fixture.writes++;
     };
-    export const watchFolder = () => new Promise(() => {});`
+    export const watchFolder = () => new Promise(() => {});
+    export const settings = () => ({ zoom: 1 });`
 };
 registerHooks({
   resolve(specifier, context, next) { return specifier in modules ?

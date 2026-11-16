@@ -58,7 +58,8 @@ const modules = {
     export const readTextFile = () => null;
     export const exec = () => { throw new Error("No process launch in view tests"); };
     export const openOverlay = options => { test.overlay = options; };
-    export const nextCommand = () => new Promise(() => {});`
+    export const nextCommand = () => new Promise(() => {});
+    export const settings = () => ({ zoom: 1 });`
 };
 registerHooks({
   resolve(specifier, context, next) {

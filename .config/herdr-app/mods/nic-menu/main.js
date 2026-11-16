@@ -8,6 +8,7 @@ import { v_flex, h_flex } from "gpui-base";
 import { run, props, closeOverlay, openOverlay, theme, keys, terminals, spaces, panes, exec, home, notify } from "herdr";
 import { moveSource, unmergeSource } from "./move-targets.js";
 import { movePicker } from "./move-view.js";
+import { initRename, renameView, TITLE_LABEL } from "./rename-view.js";
 import { menuPanel, menuItem, menuRule } from "./menu-ui.js";
 
 // Where a space is now: its first terminal's live folder, else where it was made.
@@ -45,11 +46,30 @@ function agentItems(term, pane) {
   ];
 }
 
-// A tab of one terminal stands for it in the lists, so its menu offers the same.
-function tabAgentItems(tab) {
-  const leaves = panes().filter((x) => x.tab === tab);
-  const term = leaves.length === 1 && terminals().find((t) => t.address === leaves[0].terminal);
-  return term ? agentItems(term, leaves[0]) : [];
+// What one pane offers. A pane row inside a tab group and a tab of one pane both
+// build from this, so an action added here reaches both menus.
+function paneItems(paneId) {
+  const pane = panes().find((x) => x.pane === paneId);
+  const all = terminals();
+  const term = pane && all.find((t) => t.address === pane.terminal);
+  // A kept sub-agent can go back under its parent, still running.
+  const parent = term?.parent && all.find((t) => t.address === term.parent);
+  // Once they go to the program, Shift+right-click still opens this menu.
+  const toProgram = term?.labels?.["herdr.right-click"] === "program";
+  return [
+    ["Split right", "pane.split", { direction: "right", pane: paneId }],
+    ["Split down", "pane.split", { direction: "down", pane: paneId }],
+    ["Zoom", "pane.zoom", { pane: paneId }],
+    ...(term
+      ? [
+          ...agentItems(term, pane),
+          toProgram
+            ? ["Use Herdr right-click menu", "terminal.right_click", { terminal: term.address, to: "menu" }]
+            : ["Send right-clicks to pane", "terminal.right_click", { terminal: term.address, to: "program" }],
+        ]
+      : []),
+    ...(parent ? [[`Send back to ${parent.name || parent.address}`, "terminal.park", { terminal: term.address }]] : []),
+  ];
 }
 
 function items(p, git) {
@@ -61,39 +81,31 @@ function items(p, git) {
   const unmerge = separate ? [[p.tab === "pane" ? "Move to own tab" : "Unmerge panes", "unmerge-tab", separate]] : [];
   switch (p.tab) {
     case "pane": {
-      // A kept sub-agent can go back under its parent, still running.
-      const all = terminals();
-      const term = all.find((t) => t.address === tg.terminal);
-      const parent = term?.parent && all.find((t) => t.address === term.parent);
-      // Once they go to the program, Shift+right-click still opens this menu.
-      const toProgram = term?.labels?.["herdr.right-click"] === "program";
+      const pane = panes().find((x) => x.pane === tg.pane);
+      const term = terminals().find((t) => t.address === (tg.terminal ?? pane?.terminal));
+      const space = spaces().find((s) => s.tabs?.some((c) => c.id === pane?.tab));
       return [
-        ["Split right", "pane.split", { direction: "right", pane: tg.pane }],
-        ["Split down", "pane.split", { direction: "down", pane: tg.pane }],
-        ["Zoom", "pane.zoom", { pane: tg.pane }],
+        // Herdr names tabs, not panes: a pane's name is its terminal's label (rename-view.js).
+        ...(term ? [["Rename", "rename-pane", { terminal: term.address, name: term.labels?.[TITLE_LABEL] ?? "" }]] : []),
+        ...(space ? [["New tab", "tab.new", { space: space.id }]] : []),
+        ...paneItems(tg.pane),
         ...move,
         ...unmerge,
-        ...(term
-          ? [
-              ...agentItems(term, panes().find((x) => x.pane === tg.pane)),
-              toProgram
-                ? ["Use Herdr right-click menu", "terminal.right_click", { terminal: term.address, to: "menu" }]
-                : ["Send right-clicks to pane", "terminal.right_click", { terminal: term.address, to: "program" }],
-            ]
-          : []),
-        ...(parent ? [[`Send back to ${parent.name || parent.address}`, "terminal.park", { terminal: term.address }]] : []),
         ["Close pane", "pane.close", { pane: tg.pane }],
       ];
     }
-    case "tab":
+    case "tab": {
+      // A tab of one pane stands for it in the lists, so its menu offers the pane's actions too.
+      const leaves = panes().filter((x) => x.tab === tg.id);
       return [
         ["Rename", "tab.rename", { id: tg.id }],
         ["New tab", "tab.new", { space: tg.space }],
+        ...(leaves.length === 1 ? paneItems(leaves[0].pane) : []),
         ...move,
         ...unmerge,
-        ...tabAgentItems(tg.id),
         ["Close", "tab.close", { id: tg.id }],
       ];
+    }
     case "space":
       return [
         ["Rename", "space.rename", { id: tg.id }],
@@ -115,7 +127,7 @@ function items(p, git) {
 
 const ICONS = { "worktree": "git-branch", "app.help": "terminal", "app.theme": "settings", "pane.split": "panel-right",
   "pane.zoom": "square", "move-to-tab": "layers", "unmerge-tab": "panel-left", "copy": "files", "share-last": "file-text",
-  "terminal.right_click": "monitor", "terminal.park": "pin-off" };
+  "terminal.right_click": "monitor", "terminal.park": "pin-off", "rename-pane": "square-pen" };
 function menuIcon(command) {
   return command.endsWith(".close") ? "x" : command.endsWith(".rename") ? "square-pen" : command.endsWith(".new") ? "plus" :
     ICONS[command] ?? "terminal";
@@ -134,11 +146,11 @@ export default class Menu extends View {
     // Herdr opens the terminal right-click menu itself, framed (mod.json's frame isn't used there).
     // Reopen it frameless at the pointer so it draws like every other menu.
     const opened = props();
-    if (!opened?.frameless && !opened?.movePicker) {
+    if (!opened?.frameless && !opened?.movePicker && !opened?.renamePane) {
       const { overlay, ...rest } = opened ?? {};
       this.reopening = true;
       if (overlay) closeOverlay(overlay);
-      openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 330, props: { ...rest, frameless: true } });
+      openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 400, props: { ...rest, frameless: true } });
       return;
     }
     this.at = 0;
@@ -147,6 +159,7 @@ export default class Menu extends View {
     this.handle = cx.focus_handle();
     this.handle.focus();
     const p = props();
+    if (p?.renamePane) initRename(this, cx);
     const space = p?.tab === "space" && spaces().find((s) => s.id === p.target?.id);
     const folder = space && place(space);
     if (folder)
@@ -193,12 +206,14 @@ export default class Menu extends View {
     closeOverlay(props()?.overlay);
     if (it[1] === "copy") { cx.write_to_clipboard(it[2].text); notify({ title: "Copied", body: it[2].text }); }
     else if (it[1] === "move-to-tab") openOverlay({ mod: "nic-menu", kind: "dialog", width: 620, height: 480, props: { ...it[2], movePicker: true } });
+    else if (it[1] === "rename-pane") openOverlay({ mod: "nic-menu", kind: "dialog", width: 420, height: 230, props: { ...it[2], renamePane: true } });
     else if (it[1] === "worktree") openOverlay({ mod: "worktree", kind: "dialog", ...(it[2].action === "open" ? { width: 560, height: 480 } : { width: 440, height: 260 }), props: it[2] });
     else run(it[1], it[2]);
   }
 
   render(cx) {
     if (props()?.movePicker) return movePicker(this);
+    if (props()?.renamePane) return renameView(this);
     if (this.reopening) return div();
     const t = theme();
     const list = items(props(), this.git);

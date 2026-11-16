@@ -1,7 +1,7 @@
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { spaces, panes, terminals, agents, focused, window, theme, home, exec, hc, readTextFile, run,
-  shared, setShared, props, openOverlay, setAgentOrder, nextCommand } from "herdr";
+  shared, setShared, props, openOverlay, setAgentOrder, nextCommand, settings } from "herdr";
 import { visibleAgents, legacyAttachment } from "./visible-agents.js";
 import * as fs from "fs/promises";
 import { directCodex, codexSession, newBindings } from "./codex-status.js";
@@ -216,7 +216,7 @@ export default class Workspaces extends View {
   }
 
   menu(tab, target) {
-    openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 330, props: { frameless: true, tab, target } });
+    openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 400, props: { frameless: true, tab, target } });
   }
 
   workerRows(nodes, t, depth = 0) {
@@ -375,7 +375,8 @@ export default class Workspaces extends View {
         this.width = size.width;
         if (props()?.section) {
           const key = `nic.sidebar.height.${props().section}`;
-          if (shared(key) !== size.height + 30) setShared(key, size.height + 30);
+          const height = size.height / (Number(settings().zoom) || 1) + 30; // layout px are unzoomed
+          if (shared(key) !== height) setShared(key, height);
         }
         if (was !== (this.width < 160)) cx.notify();
       })

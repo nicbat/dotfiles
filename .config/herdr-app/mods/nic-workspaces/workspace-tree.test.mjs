@@ -115,3 +115,10 @@ test("remote activation uses complete IDs and split selection never chooses a gu
     ["space.select", { id: "remote/s" }], ["tab.select", { id: "remote/t" }]]);
   assert.deepEqual(activation("remote/s", "remote/t", "remote/p"), [["pane.focus", { pane: "remote/p" }]]);
 });
+
+test("a pane named from its menu keeps that name in a split, over its agent's title", () => {
+  const ps = [pane("a", "t"), pane("b", "t")];
+  const terms = [{ address: "a", state: "live", labels: { "nic.title": "API review" } }, { address: "b", state: "live", labels: {} }];
+  const [s] = workspaceTree([space([tab("t", "Claude Code")])], ps, terms, ps.map(p => agent(p)));
+  assert.deepEqual(s.tabs[0].leaves.map(p => p.title), ["API review", "Implement feature"]);
+});

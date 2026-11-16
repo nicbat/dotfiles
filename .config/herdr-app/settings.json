@@ -3,6 +3,6 @@
   "sounds": {
     "enabled": false
   },
-  "minimum_contrast": 1.0,
-  "theme": "noctalia"
+  "font_ligatures": false,
+  "minimum_contrast": 1.0
 }

@@ -1,6 +1,6 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, Checkbox, Popover } from "gpui-base";
-import { theme, props, shared, setShared, home, run, readTextFile, writeTextFile, watchFolder } from "herdr";
+import { theme, props, shared, setShared, home, run, readTextFile, writeTextFile, watchFolder, settings } from "herdr";
 import { titleText, headings, viewOf, addTodo, setDone, editTodo, removeTodo, restoreTodo } from "./todo-file.js";
 import { SlimScrollbar } from "./slim-scrollbar.js";
 import { menuPanel, menuItem, menuRule, menuHeading } from "./menu-ui.js";
@@ -266,7 +266,8 @@ export default class Todo extends View {
         const wasNarrow = (this.width ?? 268) < 160;
         this.width = size.width;
         const key = `nic.sidebar.height.${props()?.section ?? "todo-section"}`;
-        if (shared(key) !== size.height + 30) setShared(key, size.height + 30);
+        const height = size.height / (Number(settings().zoom) || 1) + 30; // layout px are unzoomed
+        if (shared(key) !== height) setShared(key, height);
         if (wasNarrow !== (size.width < 160)) cx.notify();
       })
       .when(!narrow, el => el.child(h_flex().flex_none().pr(12).child(Popover.new("todo-source-picker").anchor("top_left")

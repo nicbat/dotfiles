@@ -62,3 +62,36 @@ test("an unrelated layout or malformed saved size cannot target a different pane
   find(root, "todo-list").hidden = true;
   assert.ok(toggleSection(root, options, () => 600, NaN).commands.every(([, args]) => !args.weight || args.weight > 0));
 });
+
+function withThoughts() {
+  const root = tree();
+  root.children.push({ id: "thoughts-section", size: { weight: 140 }, children: [
+    { id: "thoughts-section-header", content: { props: { keepHeight: true } } }, { id: "thoughts-body" }] });
+  return root;
+}
+const heights = { "workspace-section": 500, "todo-section": 300, "thoughts-section": 150 };
+
+test("a keepHeight section holds its height while another folds and reopens", () => {
+  const root = withThoughts();
+  assert.deepEqual(toggleSection(root, options, id => heights[id]).commands, [
+    ["layout.hide", { id: "todo-list" }],
+    ["layout.resize", { id: "todo-section", px: 30 }],
+    ["layout.resize", { id: "workspace-section", weight: 500 }],
+    ["layout.resize", { id: "thoughts-section", px: 150 }]
+  ]);
+  find(root, "todo-list").hidden = true;
+  assert.deepEqual(toggleSection(root, options, id => ({ ...heights, "workspace-section": 770 })[id], 300).commands, [
+    ["layout.show", { id: "todo-list" }],
+    ["layout.resize", { id: "todo-section", weight: 300 }],
+    ["layout.resize", { id: "workspace-section", weight: 500 }],
+    ["layout.resize", { id: "thoughts-section", px: 150 }]
+  ]);
+});
+
+test("a keepHeight section takes the space when no other section is open", () => {
+  const root = withThoughts();
+  find(root, "workspace-tree").hidden = true;
+  assert.deepEqual(toggleSection(root, options, id => heights[id]).commands.slice(2), [
+    ["layout.resize", { id: "thoughts-section", weight: 150 }]
+  ]);
+});

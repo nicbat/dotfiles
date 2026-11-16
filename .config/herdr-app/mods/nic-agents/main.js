@@ -364,7 +364,8 @@ export default class Agents extends View {
     // Split tabs share one tab label, so their agent rows need per-terminal titles.
     const tabs = spaces().flatMap(s => s.tabs);
     const allPanes = panes();
-    const labels = new Map(list.map(a => [a.address,
+    const named = new Map(terminals().map(t => [t.address, t.labels?.["nic.title"]]));
+    const labels = new Map(list.map(a => [a.address, named.get(a.address) ||
       agentLabel(a, tabs.find(tab => tab.id === a.tab), allPanes, home())]));
     const label = a => labels.get(a.address) ?? a.program?.name ?? "Agent";
     const detail = new Map(list.map(a => [a.address, /^\d+$/.test(label(a)) ? null : label(a)]));
@@ -391,7 +392,7 @@ export default class Agents extends View {
           .when(a.focused, el => el.bg(t.accent + "1f"))
           .hover((s) => s.bg(a.focused ? t.accent + "2b" : t.hover))
           .on_click(() => run("pane.focus", { pane: a.pane }))
-          .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 330,
+          .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 400,
             props: { frameless: true, tab: "pane", target: { pane: a.pane, terminal: a.address } } }))
           .child(div().flex_1().min_w(0).whitespace_nowrap().text_right()
             .when(a.focused, el => el.font_bold()).text_color(a.focused ? t.accent : t.muted).child(String(i + 1)))
@@ -439,7 +440,7 @@ export default class Agents extends View {
           cx.notify();
         })
         .on_click(() => run("pane.focus", { pane: a.pane }))
-        .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 330,
+        .on_mouse_down("right", () => openOverlay({ mod: "nic-menu", kind: "popup", frame: "none", width: 228, height: 400,
           props: { frameless: true, tab: "pane", target: { pane: a.pane, terminal: a.address } } }))
         .when(Boolean(pic), el => el.child(div().id(`agent-fold-${a.address}`)
           .when(subs.length > 0, el => el.on_click((_e, cx) => {

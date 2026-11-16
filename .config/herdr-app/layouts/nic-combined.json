@@ -120,6 +120,47 @@
                   }
                 }
               ]
+            },
+            {
+              "id": "thoughts-section",
+              "type": "column",
+              "size": {
+                "px": 150
+              },
+              "min": 30,
+              "resizable": false,
+              "children": [
+                {
+                  "id": "thoughts-section-header",
+                  "type": "block",
+                  "size": {
+                    "px": 30
+                  },
+                  "content": {
+                    "mod": "nic-sidebar-section",
+                    "props": {
+                      "section": "thoughts-section",
+                      "body": "thoughts-body",
+                      "parent": "sidebar-sections",
+                      "title": "Thoughts",
+                      "count": "nic.sidebar.thoughts-today",
+                      "suffix": "today",
+                      "railHide": true,
+                      "keepHeight": true
+                    }
+                  }
+                },
+                {
+                  "id": "thoughts-body",
+                  "type": "block",
+                  "content": {
+                    "mod": "nic-thoughts",
+                    "props": {
+                      "section": "thoughts-section"
+                    }
+                  }
+                }
+              ]
             }
           ]
         },

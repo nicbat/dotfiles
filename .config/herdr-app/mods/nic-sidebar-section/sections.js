@@ -13,6 +13,8 @@ export function find(node, id) {
 // Collapse only the body, keeping its live mod and the header in the layout.
 // Expanded peers share the freed space; reopening restores the previous height
 // within the space currently available, including after a window resize.
+// A section whose header props say keepHeight (Thoughts) holds its height while
+// others fold and open, unless no other section is open to take the change.
 export function toggleSection(root, options, measured, savedHeight) {
   const { section, body, parent } = options;
   const siblings = find(root, parent)?.children ?? [];
@@ -24,12 +26,17 @@ export function toggleSection(root, options, measured, savedHeight) {
     const value = measured(n.id);
     return Number.isFinite(value) && value > HEADER_HEIGHT ? value : (n.size?.px ?? 240);
   };
-  const peers = siblings.filter(n => n.id !== section && !n.children?.find(c => c.id !== `${n.id}-header`)?.hidden);
+  const open = siblings.filter(n => n.id !== section && !n.children?.find(c => c.id !== `${n.id}-header`)?.hidden);
+  const keeps = n => find(n, `${n.id}-header`)?.content?.props?.keepHeight === true;
+  const flexible = open.filter(n => !keeps(n));
+  const [kept, peers] = flexible.length ? [open.filter(keeps), flexible] : [[], open];
   const commands = [];
+  const hold = () => kept.forEach(peer => commands.push(["layout.resize", { id: peer.id, px: height(peer) }]));
   if (!collapsed) {
     const expandedHeight = height(node);
     commands.push(["layout.hide", { id: body }], ["layout.resize", { id: section, px: HEADER_HEIGHT }]);
     for (const peer of peers) commands.push(["layout.resize", { id: peer.id, weight: height(peer) }]);
+    hold();
     return { expandedHeight, commands };
   }
   commands.push(["layout.show", { id: body }]);
@@ -45,5 +52,6 @@ export function toggleSection(root, options, measured, savedHeight) {
       id: peer.id, weight: height(peer) / peerHeight * (available - restored)
     }]);
   }
+  hold();
   return { commands };
 }
