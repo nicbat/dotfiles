@@ -32,6 +32,13 @@ def identity(t):
 
 
 TITLE_LABEL = "nic.tab-title"
+# A pane's own name, from Rename on a pane in a group (nic-menu's rename-view.js).
+PANE_LABEL = "nic.title"
+
+
+def pane_name(terminal):
+    name = (terminal.get("labels") or {}).get(PANE_LABEL)
+    return name.strip() if isinstance(name, str) else ""
 
 
 def remembered_title(terminal):
@@ -51,9 +58,11 @@ def saved_title(at, terminal):
     name = tab.get("name", "")
     generated = {p.get("terminal") for p in tab["terminals"]}
     previous = remembered_title(terminal)
-    if len(tab["terminals"]) > 1 and previous and previous.get("tab") != tab["id"]:
+    if len(tab["terminals"]) > 1 and pane_name(terminal):
+        name = pane_name(terminal)  # Leaving a group: the pane's own name, not the group's.
+    elif len(tab["terminals"]) > 1 and previous and previous.get("tab") != tab["id"]:
         return previous  # This pane keeps its pre-merge name, not the group's name.
-    if not name or name in generated:
+    elif not name or name in generated:
         title = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", terminal.get("title") or "")
         title = re.sub(r"[\x00-\x1f\x7f]", "", title).strip()
         title = re.sub(r"^[^\w~/\\]+", "", title).strip()
@@ -119,6 +128,10 @@ def move(terminal, destination, direction, api=call, wait=time.sleep, expected=N
     placement_pending = False
     try:
         remember_title(terminal, title, api)
+        # A named pane joining a group keeps its tab's latest name, renamed or not.
+        if (direction != "tab" and pane_name(original) and source[1].get("name") == title["name"]
+                and pane_name(original) != title["name"]):
+            api("hc", "label", terminal, PANE_LABEL + "=" + title["name"])
         api("herdr-app", "do", "terminal.park", "--terminal", terminal)
         wait_for(lambda at, _: at is None)
         parked = True

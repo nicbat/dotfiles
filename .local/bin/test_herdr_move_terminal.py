@@ -151,4 +151,17 @@ class MoveTests(unittest.TestCase):
         self.assertEqual(app.names["recovered"], "Fix login")
 
 
+    def test_a_named_pane_leaving_a_group_takes_its_own_name_not_the_groups(self):
+        app = App(); app.extra_source = True; app.names["source"] = "Group name"
+        app.t["labels"] = {module.PANE_LABEL: "API review"}
+        result = module.move("t", None, "tab", api=app.call, wait=lambda _: None)
+        self.assertTrue(result["ok"]); self.assertEqual(app.names["recovered"], "API review")
+
+    def test_a_named_pane_joining_a_group_keeps_its_tabs_latest_name(self):
+        app = App(); app.names["source"] = "Renamed tab"
+        app.t["labels"] = {module.PANE_LABEL: "API review"}
+        result = module.move("t", "p-target", "right", api=app.call, wait=lambda _: None)
+        self.assertTrue(result["ok"]); self.assertEqual(app.t["labels"][module.PANE_LABEL], "Renamed tab")
+
+
 if __name__ == "__main__": unittest.main()
