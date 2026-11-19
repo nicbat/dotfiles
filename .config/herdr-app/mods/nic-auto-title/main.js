@@ -1,6 +1,6 @@
 import { View, div, svg, image } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { home } from "herdr";
+import { home, hc, terminals } from "herdr";
 import { AutoTitles } from "./auto-title.js";
 import { spaces, panes, run, openOverlay, theme, window, shared, setShared, layout, settings } from "herdr";
 import { TabDrag } from "./drag-ui.js";
@@ -17,7 +17,8 @@ function find(node, id) {
 
 export default class Tabs extends View {
   init(_props, cx) {
-    this.autoTitles = new AutoTitles(localStorage, (id, name) => run("tab.rename", { id, name }), home());
+    this.autoTitles = new AutoTitles(localStorage, (id, name) => run("tab.rename", { id, name }), home(),
+      (terminal, name) => hc(["label", terminal, `nic.title=${name}`]));
     this.drag = new TabDrag(cx);
     this.panels = JSON.parse(localStorage.getItem("panels") ?? "{}");
   }
@@ -53,7 +54,8 @@ export default class Tabs extends View {
   }
 
   render() {
-    this.autoTitles.sync(spaces(), panes());
+    this.autoTitles.sync(spaces(), panes(),
+      Object.fromEntries(terminals().map(t => [t.address, t.labels?.["nic.title"]]).filter(([, n]) => n)));
     const t = theme();
     const space = spaces().find(p => p.active);
     const shown = space?.tabs ?? [];
@@ -62,7 +64,7 @@ export default class Tabs extends View {
       .on_mouse_down("left", stop).on_mouse_up("left", stop).on_click(action).child(label);
     const item = c => {
       const program = panes().find(p => p.tab === c.id && p.program?.agent)?.program ?? panes().find(p => p.tab === c.id)?.program;
-      const name = /^tb\d+$/.test(c.name) ? program?.name ?? "Terminal" : c.name;
+      const name = /^tb\d+$/.test(c.name) ? program?.name ?? "Terminal" : /^\d+$/.test(c.name) ? `Tab ${c.name}` : c.name;
       const row = h_flex().id(`tab-${c.id}`).h(29).px(10).gap(7).rounded(7).items_center().flex_none().text_size(12.8)
         .border(1).border_color(c.active ? t.border : t.chrome).bg(c.active ? t.raised : t.chrome).text_color(c.active ? t.foreground : t.muted)
         .hover(s => s.bg(t.hover))

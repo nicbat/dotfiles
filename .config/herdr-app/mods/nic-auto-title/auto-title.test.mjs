@@ -8,9 +8,11 @@ const pane = { pane: 'p1', terminal: 't1', tab: 'tab', cwd: `${home}/Projects/de
 function setup(seed = {}) {
   const data = { ...seed }, calls = [];
   const storage = { getItem: (key) => data[key] ?? null, setItem: (key, value) => { data[key] = value; } };
-  return { data, calls, controller: new AutoTitles(storage, (id, name) => calls.push({ id, name }), home) };
+  const labels = [];
+  return { data, calls, labels, controller: new AutoTitles(storage, (id, name) => calls.push({ id, name }), home,
+    (terminal, name) => labels.push({ terminal, name })) };
 }
-const sync = (controller, item, list = [pane]) => controller.sync([{ tabs: [item] }], list);
+const sync = (controller, item, list = [pane], names) => controller.sync([{ tabs: [item] }], list, names);
 
 test('live agent titles exclude status decoration and repeated folder suffixes', () => {
   assert.equal(titleFor(tab, pane, home), 'Fix login');
@@ -51,38 +53,61 @@ test('existing and later manual names win; clearing a name reenables automatic t
   assert.equal(x.calls.length, 2);
 });
 
-test('mod-only tabs are untouched and each split tab remembers its focused pane', () => {
+test('mod-only tabs are untouched and an unnamed split stays numbered', () => {
   const x = setup();
   sync(x.controller, tab, [{ pane: 'mod', tab: 'tab', mod: 'files', terminal: null }]);
-  assert.equal(x.calls.length, 0);
   const other = { ...pane, pane: 'p2', terminal: 't2', title: 'Other task | demo', focused: true };
   sync(x.controller, tab, [pane, other]);
-  const named = { ...tab, named: true, name: x.calls[0].name };
-  sync(x.controller, named, [pane, { ...other, focused: false }]);
-  assert.equal(x.calls.length, 1);
-  assert.equal(named.name, 'Other task');
+  assert.equal(x.calls.length, 0);
 });
 
-test('a named split keeps its title when another pane is merged or focused and after unmerge', () => {
+test('splitting a tab with a chosen name gives that name to its agent and numbers the group', () => {
+  const x = setup();
+  const chosen = { ...tab, named: true, name: 'API review' };
+  sync(x.controller, chosen);
+  const shell = { pane: 'p2', terminal: 't2', tab: 'tab', title: 'zsh', program: { shell: true } };
+  sync(x.controller, chosen, [pane, shell]);
+  assert.deepEqual(x.labels, [{ terminal: 't1', name: 'API review' }]);
+  assert.deepEqual(x.calls, [{ id: 'tab', name: '' }]);
+  sync(x.controller, chosen, [pane, shell]); // the old name until the clear lands
+  assert.equal(x.calls.length, 1);
+  sync(x.controller, tab, [pane, shell]);
+  assert.equal(x.calls.length, 1);
+  // Survives a reload between seeing the single tab and the split.
+  const y = setup(); sync(y.controller, chosen);
+  const reloaded = setup(y.data); sync(reloaded.controller, chosen, [pane, shell]);
+  assert.deepEqual(reloaded.labels, [{ terminal: 't1', name: 'API review' }]);
+});
+
+test('splitting an automatically titled tab clears the name without labelling the agent', () => {
   const x = setup(); sync(x.controller, tab);
   const named = { ...tab, named: true, name: x.calls[0].name };
   sync(x.controller, named);
   const moved = { ...pane, pane: 'p2', terminal: 't2', title: 'Other task', focused: true };
   sync(x.controller, named, [pane, moved]);
-  assert.equal(x.calls.length, 1);
-  sync(x.controller, named, [{ ...pane, title: 'New title from the remaining pane' }]);
-  assert.equal(x.calls.length, 1);
-  const reloaded = setup(x.data);
-  sync(reloaded.controller, named, [pane, moved]);
-  assert.equal(reloaded.calls.length, 0);
+  assert.deepEqual(x.calls.at(-1), { id: 'tab', name: '' });
+  assert.equal(x.labels.length, 0);
 });
 
-test('a named mixed document group is stable and explicitly clearing it permits a new title', () => {
+test('a group named by hand keeps its name; back to one pane, that pane\'s own name titles the tab', () => {
+  const x = setup();
+  const moved = { ...pane, pane: 'p2', terminal: 't2', title: 'Other task' };
+  const group = { ...tab, named: true, name: 'Release work' };
+  sync(x.controller, tab, [pane, moved]);
+  sync(x.controller, group, [pane, moved]);
+  assert.equal(x.calls.length, 0);
+  sync(x.controller, tab, [pane], { t1: 'API review' });
+  assert.equal(x.calls.at(-1).name, 'API review');
+});
+
+test('a mixed document group is numbered and explicitly naming it keeps that name', () => {
   const x = setup(); sync(x.controller, tab);
   const named = { ...tab, named: true, name: x.calls[0].name };
+  sync(x.controller, named);
   const document = { pane:'notes', tab:'tab', terminal:null, mod:'notes' };
   sync(x.controller, named, [{ ...pane, title:'Different task' }, document]);
-  assert.equal(x.calls.length, 1);
+  assert.deepEqual(x.calls.at(-1), { id: 'tab', name: '' });
   sync(x.controller, tab, [{ ...pane, title:'Different task' }, document]);
-  assert.equal(x.calls.at(-1).name, 'Different task');
+  sync(x.controller, { ...tab, named: true, name: 'Notes and fix' }, [{ ...pane, title:'Different task' }, document]);
+  assert.equal(x.calls.length, 2);
 });
