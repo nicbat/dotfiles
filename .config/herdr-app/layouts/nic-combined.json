@@ -104,6 +104,7 @@
                       "parent": "sidebar-sections",
                       "title": "Todo",
                       "count": "nic.sidebar.todo-count",
+                      "link": "nic.sidebar.todo-link",
                       "suffix": "open",
                       "railHide": true
                     }

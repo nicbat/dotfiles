@@ -1,6 +1,7 @@
 import { View, div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { layout, props, theme, run, shared, setShared, nextCommand } from "herdr";
+import { layout, props, theme, run, shared, setShared, nextCommand, exec } from "herdr";
+import { platform } from "os";
 import { find, toggleSection } from "./sections.js";
 
 const art = name => `mods/workspace-chrome/${name}.svg`;
@@ -10,6 +11,15 @@ const RAIL = 160;
 function expandSidebar() {
   setShared("sidebar.collapsed", false);
   run("layout.resize", { id: "sidebar", px: shared("sidebar.width") ?? 268 });
+}
+
+// A `link` prop names a shared key holding { icon, title, urls } (or null): an icon
+// button that opens the first of `urls` the system takes, e.g. a desktop app, else the web.
+async function openFirst(urls) {
+  const opener = ["macos", "darwin"].includes(platform()) ? "open" : "xdg-open";
+  for (const url of urls ?? []) {
+    try { if ((await exec(opener, [url], { timeout: 10000 })).code === 0) return; } catch (_) { return; }
+  }
 }
 
 export default class SidebarSection extends View {
@@ -80,6 +90,7 @@ export default class SidebarSection extends View {
     const count = p.count ? shared(p.count) ?? 0 : 0;
     if (narrow) return this.rail(t, p, count);
     const activity = p.activity ? shared(p.activity) : null;
+    const link = p.link ? shared(p.link) : null;
     const label = activity ? `${activity.working}/${activity.total} agents` : `${count} ${p.suffix ?? ""}`.trim();
     const detail = activity && `${activity.working} working · ${activity.total} open agent sessions${activity.needs ? ` · ${activity.needs} needs you` : ""}${activity.unknown ? ` · ${activity.unknown} status unavailable` : ""}`;
     return h_flex().id("section-header").size_full().pl(9).pr(12).gap(6).items_center()
@@ -96,6 +107,12 @@ export default class SidebarSection extends View {
           .when(Boolean(activity), el => el.tooltip(detail).child(div().size(6).flex_none().rounded(3)
             .bg(activity.needs ? t.blocked : activity.working ? t.working : t.dim)))
           .child(label)))
+      .when(Boolean(link?.icon), el => el.child(div().id("section-link").size(22).flex_none().rounded(5)
+        .flex().items_center().justify_center().cursor_pointer().tooltip(link.title ?? "Open")
+        .hover(el => el.bg(t.hover).text_color(t.foreground))
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .on_click((_e, cx) => { cx.stop_propagation(); openFirst(link.urls); })
+        .child(svg(link.icon).size(14))))
       .when(Boolean(p.action), el => el.child(div().id("section-add").size(22).flex_none().rounded(5)
         .flex().items_center().justify_center().cursor_pointer().tooltip(p.actionTitle ?? "Add")
         .hover(el => el.bg(t.hover).text_color(t.foreground))

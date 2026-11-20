@@ -52,7 +52,7 @@ registerHooks({
   load(url, context, next) { return url.startsWith("todo-test:") ?
     { format: "module", source: modules[url.slice(10)], shortCircuit: true } : next(url, context); }
 });
-const { default: Todo } = await import("./main.js");
+const { default: Todo } = await import("./obsidian-view.js");
 const cx = { notify() {}, stop_propagation() {}, focus_handle: () => ({}), timer: { after: () => ({ cancel() {} }), every: () => ({ cancel() {} }) },
   spawn(body) { body(cx); }, sleep: () => new Promise(() => {}) };
 // A click or key handler's context: like Herdr's, it refuses once the handler has returned,
